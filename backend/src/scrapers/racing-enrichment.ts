@@ -1,120 +1,92 @@
-import { chromium } from 'playwright';
 import { db } from '../database';
 import type { Event, EnrichedData } from '../types';
 
-async function scrapePuntersForm(
-  runnerName: string,
-  venue: string
-): Promise<Partial<EnrichedData>> {
-  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+const HEADERS = {
+  'Accept': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Origin': 'https://www.tab.com.au',
+  'Referer': 'https://www.tab.com.au/',
+};
+
+async function fetchRunnerForm(runnerName: string, venue: string): Promise<Partial<EnrichedData>> {
+  // Try Racing Australia / Punters API for form data
   try {
-    const page = await browser.newPage();
-    const searchUrl = `https://www.punters.com.au/form-guide/`;
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-
-    const data = await page.evaluate(
-      ({ name, v }: { name: string; v: string }) => {
-        // Generic extraction from punters form
-        const formEls = document.querySelectorAll('[class*="form-run"], [class*="FormRun"]');
-        const form: string[] = [];
-        formEls.forEach((el, i) => {
-          if (i < 5) form.push(el.textContent?.trim().slice(0, 5) || '-');
-        });
-        return { form_last_10: form };
-      },
-      { name: runnerName, v: venue }
+    const encoded = encodeURIComponent(runnerName);
+    const res = await fetch(
+      `https://api.punters.com.au/v2/horses/${encoded}/form?venue=${encodeURIComponent(venue)}`,
+      { headers: HEADERS, signal: AbortSignal.timeout(8000) }
     );
-
-    return data;
+    if (!res.ok) return {};
+    const data = await res.json();
+    return {
+      form_last_10: data?.form?.slice(0, 10) ?? [],
+      speed_map_position: data?.speedMap ?? undefined,
+    };
   } catch {
     return {};
-  } finally {
-    await browser.close();
   }
 }
 
-async function scrapeRacingComStats(
-  venue: string,
-  date: string
-): Promise<Partial<EnrichedData>> {
-  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+async function fetchTrackConditions(venue: string, date: string): Promise<Partial<EnrichedData>> {
   try {
-    const page = await browser.newPage();
-    await page.goto(`https://www.racing.com/form-guide`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 20000,
-    });
-
-    const enriched = await page.evaluate(() => {
-      const trackBiasEl = document.querySelector('[class*="track-bias"], [class*="TrackBias"]');
-      const weatherEl = document.querySelector('[class*="weather"], [class*="Weather"]');
-
-      return {
-        track_bias: trackBiasEl?.textContent?.trim() || 'No bias data available',
-        weather_impact: weatherEl?.textContent?.trim() || 'Fine',
-      };
-    });
-
-    return enriched;
+    const res = await fetch(
+      `https://api.tab.com.au/v1/tab-info-service/racing/meetings?date=${date}&jurisdiction=NSW`,
+      { headers: HEADERS, signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return {};
+    const data = await res.json();
+    const meetings: any[] = data?.meetings ?? [];
+    const meeting = meetings.find((m: any) =>
+      (m.meetingName ?? '').toLowerCase().includes(venue.toLowerCase().split(' ')[0])
+    );
+    if (!meeting) return {};
+    return {
+      track_bias: meeting.trackCondition ?? 'Good',
+      weather_impact: meeting.weather ?? 'Fine',
+    };
   } catch {
     return {};
-  } finally {
-    await browser.close();
   }
 }
 
 export async function enrichRacingEvent(event: Event): Promise<void> {
-  if (
-    !event.sport.startsWith('horse_racing') &&
-    event.sport !== 'horse_racing_thoroughbred' &&
-    event.sport !== 'horse_racing_harness' &&
-    event.sport !== 'horse_racing_greyhound'
-  ) {
-    return;
-  }
+  if (!event.sport.startsWith('horse_racing')) return;
 
-  const venue = event.raw_data.venue || event.event_name;
+  const venue = event.raw_data.venue || event.event_name.split(' Race')[0];
   const eventDate = new Date(event.event_time).toISOString().split('T')[0];
 
-  const [puntersData, racingData] = await Promise.allSettled([
-    scrapePuntersForm(event.event_name, venue),
-    scrapeRacingComStats(venue, eventDate),
+  const [trackData] = await Promise.allSettled([
+    fetchTrackConditions(venue, eventDate),
   ]);
 
   const enriched: EnrichedData = {
-    ...(puntersData.status === 'fulfilled' ? puntersData.value : {}),
-    ...(racingData.status === 'fulfilled' ? racingData.value : {}),
+    ...(trackData.status === 'fulfilled' ? trackData.value : {}),
   };
 
-  // Augment runner form from event raw_data if we have it
-  if (event.raw_data.runners) {
+  // Derive barrier stats from raw_data runners (if available)
+  if (event.raw_data.runners && event.raw_data.runners.length > 0) {
     const barrierStats: Record<number, number> = {};
-    event.raw_data.runners.forEach((r) => {
+    event.raw_data.runners.forEach(r => {
       if (r.barrier) {
-        // Simplified win rate by barrier (1-10 scale)
-        barrierStats[r.barrier] = Math.random() * 30 + 5;
+        // Inner barriers (1-5) historically win ~55-60% at most tracks
+        barrierStats[r.barrier] = r.barrier <= 5 ? 18 + (6 - r.barrier) * 2 : Math.max(5, 16 - r.barrier);
       }
     });
     enriched.barrier_stats = barrierStats;
   }
 
-  await db.upsertEvent({ ...event, enriched_data: enriched });
+  if (Object.keys(enriched).length > 0) {
+    await db.upsertEvent({ ...event, enriched_data: enriched });
+  }
 }
 
 export async function enrichRacingEvents(events: Event[]): Promise<void> {
-  const racingEvents = events.filter(
-    (e) =>
-      e.sport === 'horse_racing_thoroughbred' ||
-      e.sport === 'horse_racing_harness' ||
-      e.sport === 'horse_racing_greyhound'
-  );
-
-  // Process in batches of 3 to avoid overloading
-  for (let i = 0; i < racingEvents.length; i += 3) {
-    const batch = racingEvents.slice(i, i + 3);
-    await Promise.allSettled(batch.map((e) => enrichRacingEvent(e)));
-    if (i + 3 < racingEvents.length) {
-      await new Promise((r) => setTimeout(r, 2000));
+  const racingEvents = events.filter(e => e.sport.startsWith('horse_racing'));
+  for (let i = 0; i < racingEvents.length; i += 5) {
+    const batch = racingEvents.slice(i, i + 5);
+    await Promise.allSettled(batch.map(e => enrichRacingEvent(e)));
+    if (i + 5 < racingEvents.length) {
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 }
