@@ -11,7 +11,16 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: [config.frontendUrl, 'http://localhost:5173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    const allowed = [
+      config.frontendUrl,
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://edgeiqsite.netlify.app',
+    ].filter(Boolean);
+    if (!origin || allowed.includes(origin)) callback(null, true);
+    else callback(new Error(`CORS blocked: ${origin}`));
+  },
   credentials: true,
 }));
 

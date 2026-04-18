@@ -6,16 +6,7 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Proxy /api/* to the backend (Railway/Render)
-# BACKEND_URL must be set in Netlify → Site config → Environment variables
-# e.g. https://edgeiq-backend-production.up.railway.app
-[[redirects]]
-  from   = "/api/*"
-  to     = ":BACKEND_URL/api/:splat"
-  status = 200
-  force  = true
-
-# SPA fallback — must come AFTER the /api rule
+# SPA fallback — all routes serve index.html
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
