@@ -19,9 +19,11 @@ export function clearScraperErrors(): void {
 
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
+    const executablePath = process.env.CHROME_BIN || undefined;
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     });
   }
   return browser;
