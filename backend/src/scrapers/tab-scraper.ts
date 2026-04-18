@@ -17,13 +17,47 @@ export function clearScraperErrors(): void {
   scraperErrors = [];
 }
 
+function findChromiumPath(): string | undefined {
+  const candidates = [
+    process.env.CHROME_BIN,
+    process.env.CHROMIUM_PATH,
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/snap/bin/chromium',
+  ].filter(Boolean) as string[];
+
+  for (const p of candidates) {
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(p)) return p;
+    } catch {}
+  }
+  return undefined;
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
-    const executablePath = process.env.CHROME_BIN || undefined;
+    const executablePath = findChromiumPath();
+    if (!executablePath) {
+      console.warn('No system Chromium found — Playwright will download its own');
+    } else {
+      console.log(`Using Chromium at: ${executablePath}`);
+    }
     browser = await chromium.launch({
       headless: true,
       executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--window-size=1920,1080',
+      ],
     });
   }
   return browser;
@@ -34,8 +68,12 @@ async function getPage(): Promise<Page> {
   if (!page || page.isClosed()) {
     const ctx = await b.newContext({
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       viewport: { width: 1920, height: 1080 },
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      },
     });
     page = await ctx.newPage();
     isLoggedIn = false;

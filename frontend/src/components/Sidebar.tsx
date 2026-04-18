@@ -12,13 +12,16 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Radio,
+  AlertCircle,
 } from 'lucide-react';
 import { clsx, formatCurrency } from '../lib/utils';
 import { useAppStore } from '../store/useAppStore';
 import { useBettingStore } from '../store/useBettingStore';
 
-const NAV = [
+const NAV: Array<{ to: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; exact?: boolean; pulse?: boolean }> = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { to: '/live', label: 'Live', icon: Radio, pulse: true },
   { to: '/pending', label: 'Pending Bets', icon: Clock },
   { to: '/racing', label: 'Racing', icon: Flag },
   { to: '/sports', label: 'Sports', icon: Gamepad2 },
@@ -78,7 +81,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
-        {NAV.map(({ to, label, icon: Icon, exact }) => (
+        {NAV.map(({ to, label, icon: Icon, exact, pulse }) => (
           <NavLink
             key={to}
             to={to}
@@ -92,12 +95,18 @@ export function Sidebar() {
               )
             }
           >
-            <Icon size={16} />
+            <div className="relative">
+              <Icon size={16} />
+              {pulse && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-edge animate-pulse" />}
+            </div>
             <span>{label}</span>
             {label === 'Pending Bets' && pending.length > 0 && (
               <span className="ml-auto bg-green-edge text-navy-950 text-xs font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center">
                 {pending.length}
               </span>
+            )}
+            {label === 'Settings' && (scraperStatus?.errors?.length || 0) > 0 && (
+              <AlertCircle size={12} className="ml-auto text-red-edge" />
             )}
           </NavLink>
         ))}

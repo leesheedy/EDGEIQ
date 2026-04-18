@@ -31,12 +31,12 @@ export function Layout() {
 
     init();
 
-    // Poll for new data every 60 seconds
+    // Poll for new data every 20 seconds
     const interval = setInterval(() => {
       loadPending();
       loadBankroll();
       loadScraperStatus();
-    }, 60000);
+    }, 20000);
 
     return () => clearInterval(interval);
   }, []);

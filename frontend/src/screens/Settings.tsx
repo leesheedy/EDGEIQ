@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Save, TestTube, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, TestTube, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { settingsApi } from '../lib/api';
+import { settingsApi, scraperApi } from '../lib/api';
 import { clsx } from '../lib/utils';
 
 interface FormState {
@@ -28,7 +28,8 @@ interface FormState {
 }
 
 export function Settings() {
-  const { settings, updateSettings, addToast } = useAppStore();
+  const { settings, updateSettings, addToast, scraperStatus, loadScraperStatus } = useAppStore();
+  const [scraperErrors, setScraperErrors] = useState<string[]>([]);
   const [form, setForm] = useState<FormState>({
     anthropic_api_key: '',
     tab_username: '',
@@ -52,6 +53,11 @@ export function Settings() {
   const [saving, setSaving] = useState(false);
   const [smsTestResult, setSmsTestResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [testingSmS, setTestingSms] = useState(false);
+
+  useEffect(() => {
+    scraperApi.errors().then(setScraperErrors).catch(() => {});
+    loadScraperStatus();
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -118,6 +124,52 @@ export function Settings() {
       </div>
 
       <div className="flex flex-col gap-5">
+        {/* Scraper Status */}
+        <div className="bg-navy-800 border border-navy-700 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-display font-semibold text-white text-base">Scraper Status</h2>
+              <p className="text-xs text-gray-500 font-mono mt-0.5">
+                {scraperStatus?.running ? 'Running...' : scraperStatus?.last_run
+                  ? `Last run: ${new Date(scraperStatus.last_run).toLocaleTimeString('en-AU')}`
+                  : 'Never run'}
+                {scraperStatus?.events_scraped !== undefined && !scraperStatus.running
+                  ? ` · ${scraperStatus.events_scraped} events`
+                  : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => { scraperApi.errors().then(setScraperErrors).catch(() => {}); loadScraperStatus(); }}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-navy-700 transition-all">
+              <RefreshCw size={14} />
+            </button>
+          </div>
+
+          {scraperErrors.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-green-edge">
+              <CheckCircle size={14} />
+              <span className="font-mono">No errors</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-red-edge">
+                  <AlertCircle size={14} />
+                  <span className="font-mono">{scraperErrors.length} error{scraperErrors.length > 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              {scraperErrors.map((err, i) => (
+                <div key={i} className="bg-red-edge/10 border border-red-edge/20 rounded-xl px-3 py-2 text-xs font-mono text-red-400 break-all">
+                  {err}
+                </div>
+              ))}
+              <p className="text-xs text-gray-600 font-mono mt-1">
+                Errors clear automatically on next scrape run. Common causes: TAB credentials not set, Chromium not found, network timeout.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* AI Section */}
         <Section title="AI Engine" subtitle="Anthropic Claude configuration">
           <Field label="Anthropic API Key">
