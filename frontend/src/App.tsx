@@ -6,6 +6,7 @@ import { PendingBets } from './screens/PendingBets';
 import { Racing } from './screens/Racing';
 import { Sports } from './screens/Sports';
 import { Live } from './screens/Live';
+import { Casino } from './screens/Casino';
 import { ActiveBets } from './screens/ActiveBets';
 import { History } from './screens/History';
 import { Settings } from './screens/Settings';
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/racing" element={<Racing />} />
         <Route path="/sports" element={<Sports />} />
         <Route path="/live" element={<Live />} />
+        <Route path="/casino" element={<Casino />} />
         <Route path="/active" element={<ActiveBets />} />
         <Route path="/history" element={<History />} />
         <Route path="/settings" element={<Settings />} />

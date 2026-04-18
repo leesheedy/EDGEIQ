@@ -71,6 +71,7 @@ export function Racing() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [activeSport, setActiveSport] = useState<Sport | 'all'>('all');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'detail'>('list');
 
   const refresh = useCallback(async () => {
     await loadEvents(activeSport === 'all' ? undefined : activeSport);
@@ -115,9 +116,29 @@ export function Racing() {
   const nextRace = racingEvents[0];
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col lg:flex-row">
+      {/* Mobile panel toggle */}
+      {selectedEvent && (
+        <div className="lg:hidden flex bg-navy-900 border-b border-navy-700 shrink-0">
+          <button onClick={() => setMobilePanel('list')}
+            className={clsx('flex-1 py-2 text-xs font-mono transition-all',
+              mobilePanel === 'list' ? 'text-green-edge border-b-2 border-green-edge' : 'text-gray-500'
+            )}>
+            Race List
+          </button>
+          <button onClick={() => setMobilePanel('detail')}
+            className={clsx('flex-1 py-2 text-xs font-mono transition-all',
+              mobilePanel === 'detail' ? 'text-green-edge border-b-2 border-green-edge' : 'text-gray-500'
+            )}>
+            Race Card
+          </button>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <div className="w-72 shrink-0 border-r border-navy-700 flex flex-col bg-navy-950">
+      <div className={clsx('w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-navy-700 flex flex-col bg-navy-950',
+        selectedEvent ? (mobilePanel === 'list' ? 'flex' : 'hidden lg:flex') : 'flex'
+      )}>
         <div className="p-3 border-b border-navy-700 flex items-center justify-between">
           <div className="flex gap-1">
             {SPORT_TABS.map(({ value, emoji }) => (
@@ -184,7 +205,7 @@ export function Racing() {
                   const isSelected = selectedEvent?.id === ev.id;
                   const isBet = an?.ai_recommendation?.recommendation === 'BET';
                   return (
-                    <button key={ev.id} onClick={() => setSelectedEvent(ev)}
+                    <button key={ev.id} onClick={() => { setSelectedEvent(ev); setMobilePanel('detail'); }}
                       className={clsx('w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-1 text-left transition-all',
                         isSelected ? 'bg-navy-700 border border-green-edge/20' : 'hover:bg-navy-800'
                       )}>
@@ -231,7 +252,9 @@ export function Racing() {
       </div>
 
       {/* Main panel */}
-      <div className="flex-1 overflow-y-auto bg-navy-950">
+      <div className={clsx('flex-1 overflow-y-auto bg-navy-950',
+        selectedEvent ? (mobilePanel === 'detail' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col') : 'hidden lg:flex lg:flex-col'
+      )}>
         {!selectedEvent ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-6xl mb-4">🏇</div>
