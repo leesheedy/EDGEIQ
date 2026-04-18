@@ -10,7 +10,7 @@ import type {
   BetOutcome,
 } from '../types';
 
-const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
+const BASE = `${import.meta.env.VITE_API_URL ?? 'https://edgeiq-production-6e47.up.railway.app'}/api`;
 
 async function request<T>(
   path: string,
