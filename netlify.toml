@@ -1,0 +1,16 @@
+[build]
+  base    = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback — all routes serve index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# Optional: proxy /api calls to backend during preview deploys
+# Set VITE_API_URL in Netlify environment variables instead
