@@ -22,6 +22,17 @@ export const config = {
     baseUrl: 'https://www.tab.com.au',
   },
 
+  oddsApi: {
+    key: process.env.ODDS_API_KEY || '',
+    baseUrl: 'https://api.the-odds-api.com/v4',
+  },
+
+  betfair: {
+    appKey: process.env.BETFAIR_APP_KEY || '',
+    username: process.env.BETFAIR_USERNAME || '',
+    password: process.env.BETFAIR_PASSWORD || '',
+  },
+
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID || '',
     authToken: process.env.TWILIO_AUTH_TOKEN || '',

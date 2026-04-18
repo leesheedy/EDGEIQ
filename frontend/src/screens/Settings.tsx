@@ -170,6 +170,37 @@ export function Settings() {
           )}
         </div>
 
+        {/* Data Sources */}
+        <Section title="Data Sources" subtitle="API keys for live odds & racing data">
+          <div className="bg-navy-900/50 border border-navy-600/50 rounded-xl p-3 mb-2">
+            <p className="text-xs text-gray-400 font-mono leading-relaxed">
+              <span className="text-amber-edge font-semibold">TAB.com.au blocks non-Australian IPs.</span> Set these keys in Railway environment variables to get live data from anywhere.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-mono text-gray-400">The Odds API Key — <span className="text-green-edge">Sports odds (NRL, AFL, NBA…)</span></label>
+                <a href="https://the-odds-api.com" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline">Get free key ↗</a>
+              </div>
+              <p className="text-xs text-gray-600 font-mono mb-1.5">Set as ODDS_API_KEY in Railway env vars. Free tier: 500 req/month. Returns real TAB odds.</p>
+              <div className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-500 italic">
+                {settings?.odds_api_key_set === 'true' ? '✓ ODDS_API_KEY is set in Railway' : '✗ ODDS_API_KEY not set — add to Railway Variables tab'}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-mono text-gray-400">BetFair App Key — <span className="text-green-edge">AU Horse racing</span></label>
+                <a href="https://developer.betfair.com" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline">Get free key ↗</a>
+              </div>
+              <p className="text-xs text-gray-600 font-mono mb-1.5">Set BETFAIR_APP_KEY + BETFAIR_USERNAME + BETFAIR_PASSWORD in Railway. Works globally, free for personal use.</p>
+              <div className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-500 italic">
+                {settings?.betfair_key_set === 'true' ? '✓ BetFair credentials set in Railway' : '✗ BETFAIR_APP_KEY not set — add to Railway Variables tab'}
+              </div>
+            </div>
+          </div>
+        </Section>
+
         {/* AI Section */}
         <Section title="AI Engine" subtitle="Anthropic Claude configuration">
           <Field label="Anthropic API Key">

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../database';
 import { testSms } from '../services/notifications';
+import { config } from '../config';
 
 const router = Router();
 
@@ -33,6 +34,9 @@ router.get('/', async (_req, res) => {
   safe.anthropic_key_set = all.anthropic_api_key ? 'true' : 'false';
   safe.tab_username_set = all.tab_username ? 'true' : 'false';
   safe.twilio_configured = (all.twilio_account_sid && all.twilio_from && all.twilio_to) ? 'true' : 'false';
+  // Data source API key status (from env vars — not stored in DB)
+  safe.odds_api_key_set = config.oddsApi.key ? 'true' : 'false';
+  safe.betfair_key_set = config.betfair.appKey ? 'true' : 'false';
   res.json({ data: safe });
 });
 
