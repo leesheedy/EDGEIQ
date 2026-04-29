@@ -139,6 +139,12 @@ export const screenshotApi = {
       method: 'POST',
       body: JSON.stringify({ image, mediaType }),
     }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  analyseMulti: (images: Array<{ image: string; mediaType: string }>): Promise<any> =>
+    request<unknown>('/screenshot/analyse-multi', {
+      method: 'POST',
+      body: JSON.stringify({ images }),
+    }),
 };
 
 // Health

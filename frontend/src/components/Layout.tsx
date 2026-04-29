@@ -53,7 +53,7 @@ export function Layout() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-navy-950 overflow-hidden">
+    <div className="flex h-[100dvh] bg-navy-950 overflow-hidden">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -75,13 +75,13 @@ export function Layout() {
           </div>
         </div>
 
-        {/* Main content — extra bottom padding on mobile for bottom nav */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+        {/* Main content — extra bottom padding on mobile for bottom nav + safe area */}
+        <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
           <Outlet />
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-navy-900 border-t border-navy-700 z-40 safe-area-bottom">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-navy-900 border-t border-navy-700 z-50 safe-area-bottom">
           <div className="flex items-stretch">
             {BOTTOM_NAV.map(({ to, label, icon: Icon, exact, highlight }) => {
               const isActive =

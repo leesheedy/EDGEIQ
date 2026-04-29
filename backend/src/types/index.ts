@@ -59,6 +59,8 @@ export interface RawEventData {
   venue?: string;
   state?: string;
   race_number?: number;
+  bookmaker?: string;
+  betfair_market_id?: string;
 }
 
 export interface EnrichedData {
@@ -70,6 +72,7 @@ export interface EnrichedData {
   barrier_stats?: Record<number, number>;
   jockey_trainer_stats?: Record<string, number>;
   speed_map?: string;
+  speed_map_position?: string;
   class_rating?: number;
   weather_impact?: string;
 }

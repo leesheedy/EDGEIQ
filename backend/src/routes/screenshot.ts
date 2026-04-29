@@ -50,6 +50,69 @@ Return ONLY this exact JSON structure (no other text):
   }
 }`;
 
+router.post('/analyse-multi', async (req, res) => {
+  try {
+    const { images } = req.body as {
+      images: Array<{ image: string; mediaType?: string }>;
+    };
+
+    if (!images?.length) {
+      return res.status(400).json({ error: 'No images provided' });
+    }
+
+    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Anthropic API key not configured — add it to Settings' });
+    }
+
+    const client = new Anthropic({ apiKey });
+
+    const imageBlocks = images.slice(0, 6).map(({ image, mediaType = 'image/jpeg' }) => {
+      const base64 = image.replace(/^data:image\/\w+;base64,/, '');
+      const safeType = (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mediaType)
+        ? mediaType
+        : 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+      return {
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: safeType, data: base64 },
+      };
+    });
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2000,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            ...imageBlocks,
+            { type: 'text', text: `These are ${images.length} screenshots of the same TAB betting page. Analyse all of them together as a complete view of the available bets.\n\n${EXTRACT_PROMPT}` },
+          ],
+        },
+      ],
+    });
+
+    const text = message.content
+      .filter((c) => c.type === 'text')
+      .map((c) => (c as { type: 'text'; text: string }).text)
+      .join('');
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return res.status(422).json({ error: 'Could not read betting data from screenshots — try clearer images' });
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    res.json({ data: parsed });
+  } catch (err) {
+    console.error('Screenshot multi-analysis error:', err);
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Analysis failed',
+    });
+  }
+});
+
 router.post('/analyse', async (req, res) => {
   try {
     const { image, mediaType = 'image/jpeg' } = req.body as {

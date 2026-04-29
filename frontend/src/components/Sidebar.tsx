@@ -139,13 +139,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
       <aside className={clsx(
-        'w-56 shrink-0 bg-navy-900 border-r border-navy-700 flex flex-col h-screen sticky top-0 z-40 transition-transform duration-200',
+        'w-56 shrink-0 bg-navy-900 border-r border-navy-700 flex flex-col h-[100dvh] sticky top-0 z-40 transition-transform duration-200',
         'fixed lg:relative',
         open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
