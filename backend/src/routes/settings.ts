@@ -32,7 +32,7 @@ router.get('/', async (_req, res) => {
   safe.tab_username_set = all.tab_username ? 'true' : 'false';
   safe.twilio_configured = (all.twilio_account_sid && all.twilio_from && all.twilio_to) ? 'true' : 'false';
   safe.odds_api_key_set = all.odds_api_key ? 'true' : 'false';
-  safe.betfair_key_set = all.betfair_app_key ? 'true' : 'false';
+  safe.betfair_key_set = (all.betfair_app_key || all.betfair_username) ? 'true' : 'false';
 
   res.json({ data: safe });
 });
