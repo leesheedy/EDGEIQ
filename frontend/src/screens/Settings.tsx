@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, TestTube, Database } from 'lucide-react';
+import { Save, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, TestTube, Database, Lock, RotateCcw } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { settingsApi, scraperApi } from '../lib/api';
 import { clsx } from '../lib/utils';
@@ -51,13 +51,14 @@ const DEFAULTS: FormState = {
 const INPUT = 'w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50';
 
 export function Settings() {
-  const { settings, updateSettings, addToast, scraperStatus, loadScraperStatus } = useAppStore();
+  const { settings, updateSettings, addToast, scraperStatus, loadScraperStatus, lock } = useAppStore();
   const [scraperErrors, setScraperErrors] = useState<string[]>([]);
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [show, setShow] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [smsTestResult, setSmsTestResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [testingSmS, setTestingSmS] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     scraperApi.errors().then(setScraperErrors).catch(() => {});
@@ -97,6 +98,24 @@ export function Settings() {
       addToast('error', 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function hardRefresh() {
+    setRefreshing(true);
+    try {
+      // Unregister any service workers so the next load fetches fresh assets
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      // Clear all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } finally {
+      window.location.reload();
     }
   }
 
@@ -310,6 +329,31 @@ export function Settings() {
         <Card title="Application">
           <Toggle label="Sound notifications" value={form.sound_enabled === 'true'} onChange={(v) => set('sound_enabled', v ? 'true' : 'false')} />
           <Toggle label="Learning system" description="Inject past performance into AI prompts" value={form.learning_enabled === 'true'} onChange={(v) => set('learning_enabled', v ? 'true' : 'false')} />
+        </Card>
+
+        {/* Session */}
+        <Card title="Session">
+          <button
+            onClick={hardRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-3 w-full px-4 py-3 bg-navy-900 border border-navy-600 rounded-xl text-sm font-mono text-gray-300 hover:text-white hover:border-navy-500 transition-all"
+          >
+            <RotateCcw size={16} className={refreshing ? 'animate-spin text-green-edge' : 'text-gray-500'} />
+            <div className="text-left">
+              <div>{refreshing ? 'Refreshing…' : 'Check for updates'}</div>
+              <div className="text-xs text-gray-600 mt-0.5">Clears cache and reloads the latest version</div>
+            </div>
+          </button>
+          <button
+            onClick={lock}
+            className="flex items-center gap-3 w-full px-4 py-3 bg-navy-900 border border-navy-600 rounded-xl text-sm font-mono text-gray-300 hover:text-red-400 hover:border-red-edge/30 transition-all"
+          >
+            <Lock size={16} className="text-gray-500" />
+            <div className="text-left">
+              <div>Lock app</div>
+              <div className="text-xs text-gray-600 mt-0.5">Returns to PIN screen</div>
+            </div>
+          </button>
         </Card>
 
       </div>
