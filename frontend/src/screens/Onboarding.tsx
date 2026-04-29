@@ -1,77 +1,105 @@
-import React, { useState, useRef } from 'react';
-import { Zap, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Delete } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { clsx } from '../lib/utils';
 
 const APP_PASSWORD = '1530';
+const PIN_LENGTH = 4;
+
+const PAD = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['', '0', 'del'],
+];
 
 export function Onboarding() {
   const { unlock } = useAppStore();
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
+  const [digits, setDigits] = useState('');
+  const [shake, setShake] = useState(false);
   const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (password === APP_PASSWORD) {
-      unlock();
-    } else {
-      setError('Incorrect password');
-      setPassword('');
-      inputRef.current?.focus();
+  useEffect(() => {
+    if (digits.length === PIN_LENGTH) {
+      if (digits === APP_PASSWORD) {
+        unlock();
+      } else {
+        setShake(true);
+        setError('Try again');
+        setTimeout(() => {
+          setDigits('');
+          setShake(false);
+          setError('');
+        }, 600);
+      }
+    }
+  }, [digits]);
+
+  function press(key: string) {
+    if (shake) return;
+    if (key === 'del') {
+      setDigits(d => d.slice(0, -1));
+      setError('');
+    } else if (digits.length < PIN_LENGTH) {
+      setDigits(d => d + key);
     }
   }
 
   return (
-    <div className="min-h-screen bg-navy-950 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs">
-        <div className="flex flex-col items-center gap-3 mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-green-edge flex items-center justify-center shadow-lg shadow-green-edge/30">
-            <Zap size={28} className="text-navy-950" />
-          </div>
-          <span className="font-display font-bold text-4xl text-white tracking-tight">
-            Edge<span className="text-green-edge">IQ</span>
-          </span>
+    <div className="min-h-[100dvh] bg-navy-950 flex flex-col items-center justify-center p-6 select-none">
+      {/* Logo */}
+      <div className="flex flex-col items-center gap-3 mb-14">
+        <div className="w-16 h-16 rounded-2xl bg-green-edge flex items-center justify-center shadow-lg shadow-green-edge/30">
+          <Zap size={28} className="text-navy-950" />
         </div>
+        <span className="font-display font-bold text-4xl text-white tracking-tight">
+          Edge<span className="text-green-edge">IQ</span>
+        </span>
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="relative">
-            <input
-              ref={inputRef}
-              type={showPw ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(''); }}
-              placeholder="Enter password"
-              autoFocus
-              className="w-full bg-navy-800 border border-navy-700 rounded-2xl px-4 py-4 text-white font-mono text-xl text-center placeholder-gray-600 focus:outline-none focus:border-green-edge/50 pr-12 tracking-widest"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-            >
-              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-
-          {error && (
-            <p className="text-red-edge text-sm font-mono text-center">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={!password}
+      {/* PIN dots */}
+      <div className={clsx('flex gap-5 mb-3 transition-transform', shake && 'animate-shake')}>
+        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+          <div
+            key={i}
             className={clsx(
-              'w-full py-4 rounded-2xl font-display font-bold text-lg transition-all',
-              !password
-                ? 'bg-navy-700 text-gray-500 cursor-not-allowed'
-                : 'bg-green-edge text-navy-950 hover:bg-green-dim active:scale-95'
+              'w-4 h-4 rounded-full border-2 transition-all duration-150',
+              i < digits.length
+                ? 'bg-green-edge border-green-edge scale-110'
+                : 'bg-transparent border-navy-600'
             )}
-          >
-            Unlock
-          </button>
-        </form>
+          />
+        ))}
+      </div>
+
+      {/* Error */}
+      <p className={clsx(
+        'text-sm font-mono text-red-edge mb-10 h-5 transition-opacity',
+        error ? 'opacity-100' : 'opacity-0'
+      )}>
+        {error || ' '}
+      </p>
+
+      {/* Numpad */}
+      <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
+        {PAD.flat().map((key, i) => {
+          if (!key) return <div key={i} />;
+          return (
+            <button
+              key={i}
+              onClick={() => press(key)}
+              disabled={shake}
+              className={clsx(
+                'h-16 rounded-2xl font-display font-semibold text-2xl transition-all active:scale-90',
+                key === 'del'
+                  ? 'bg-navy-800 text-gray-400 flex items-center justify-center'
+                  : 'bg-navy-800 text-white hover:bg-navy-700'
+              )}
+            >
+              {key === 'del' ? <Delete size={20} /> : key}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

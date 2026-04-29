@@ -8,8 +8,10 @@ interface Toast {
   message: string;
 }
 
+const AUTH_KEY = 'edgeiq_auth';
+
 interface AppState {
-  // Auth — session only, never persisted
+  // Auth — persisted in localStorage indefinitely
   authenticated: boolean;
   unlock: () => void;
   lock: () => void;
@@ -47,9 +49,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
-  authenticated: false,
-  unlock: () => set({ authenticated: true }),
-  lock: () => set({ authenticated: false }),
+  authenticated: localStorage.getItem(AUTH_KEY) === '1',
+  unlock: () => { localStorage.setItem(AUTH_KEY, '1'); set({ authenticated: true }); },
+  lock: () => { localStorage.removeItem(AUTH_KEY); set({ authenticated: false }); },
 
   bankrollStats: null,
   loadBankroll: async () => {
