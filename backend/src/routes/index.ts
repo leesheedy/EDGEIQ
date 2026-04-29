@@ -6,6 +6,7 @@ import bankrollRouter from './bankroll';
 import settingsRouter from './settings';
 import learningRouter from './learning';
 import scraperRouter from './scraper';
+import screenshotRouter from './screenshot';
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.use('/bankroll', bankrollRouter);
 router.use('/settings', settingsRouter);
 router.use('/learning', learningRouter);
 router.use('/scraper', scraperRouter);
+router.use('/screenshot', screenshotRouter);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

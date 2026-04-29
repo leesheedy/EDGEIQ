@@ -36,4 +36,12 @@ router.post('/deposit', async (req, res) => {
   res.json({ data: { balance: newBalance } });
 });
 
+// Set balance directly (manual sync from TAB account)
+router.post('/set', async (req, res) => {
+  const { amount } = z.object({ amount: z.number().positive() }).parse(req.body);
+  await db.logBankroll(amount, `Balance updated to $${amount.toFixed(2)}`);
+  await db.setSetting('starting_bankroll', String(amount));
+  res.json({ data: { balance: amount } });
+});
+
 export default router;

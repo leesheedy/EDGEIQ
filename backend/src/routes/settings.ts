@@ -2,11 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../database';
 import { testSms } from '../services/notifications';
-import { config } from '../config';
 
 const router = Router();
 
-// Safe keys — never return sensitive values to frontend directly
+// Safe non-sensitive keys returned as-is
 const SAFE_KEYS = [
   'confidence_threshold',
   'sms_confidence_threshold',
@@ -18,41 +17,43 @@ const SAFE_KEYS = [
   'scrape_interval_minutes',
   'starting_bankroll',
   'learning_enabled',
-  'tab_username_set',
-  'twilio_configured',
-  'anthropic_key_set',
 ];
 
 router.get('/', async (_req, res) => {
   const all = await db.getAllSettings();
-  // Mask sensitive values
   const safe: Record<string, string> = {};
+
   for (const key of SAFE_KEYS) {
     if (all[key] !== undefined) safe[key] = all[key];
   }
-  // Indicate if sensitive keys exist without exposing values
+
+  // Indicate if sensitive keys are set without exposing their values
   safe.anthropic_key_set = all.anthropic_api_key ? 'true' : 'false';
   safe.tab_username_set = all.tab_username ? 'true' : 'false';
   safe.twilio_configured = (all.twilio_account_sid && all.twilio_from && all.twilio_to) ? 'true' : 'false';
-  // Data source API key status (from env vars — not stored in DB)
-  safe.odds_api_key_set = config.oddsApi.key ? 'true' : 'false';
-  safe.betfair_key_set = config.betfair.appKey ? 'true' : 'false';
+  safe.odds_api_key_set = all.odds_api_key ? 'true' : 'false';
+  safe.betfair_key_set = all.betfair_app_key ? 'true' : 'false';
+
   res.json({ data: safe });
 });
 
 router.put('/', async (req, res) => {
   const settings = req.body as Record<string, string>;
 
-  // Validate numeric fields
-  const numericFields = ['confidence_threshold', 'sms_confidence_threshold', 'max_stake_percent', 'scrape_interval_minutes', 'starting_bankroll', 'sms_confidence_threshold'];
+  const numericFields = ['confidence_threshold', 'sms_confidence_threshold', 'max_stake_percent', 'scrape_interval_minutes', 'starting_bankroll'];
   for (const field of numericFields) {
     if (settings[field] !== undefined && isNaN(Number(settings[field]))) {
       return res.status(400).json({ error: `${field} must be a number` });
     }
   }
 
-  await db.setSettings(settings);
-  res.json({ data: { updated: Object.keys(settings).length } });
+  // Remove empty strings so they don't overwrite existing keys with blanks
+  const filtered = Object.fromEntries(
+    Object.entries(settings).filter(([, v]) => v !== '')
+  );
+
+  await db.setSettings(filtered);
+  res.json({ data: { updated: Object.keys(filtered).length } });
 });
 
 router.post('/test-sms', async (req, res) => {

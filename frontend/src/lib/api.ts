@@ -87,6 +87,11 @@ export const bankrollApi = {
       method: 'POST',
       body: JSON.stringify({ amount }),
     }),
+  set: (amount: number) =>
+    request<{ balance: number }>('/bankroll/set', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
 };
 
 // Settings
@@ -124,6 +129,16 @@ export const scraperApi = {
   status: () => request<ScraperStatus>('/scraper/status'),
   trigger: () => request<ScraperStatus>('/scraper/trigger', { method: 'POST' }),
   errors: () => request<string[]>('/scraper/errors'),
+};
+
+// Screenshot Analysis
+export const screenshotApi = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  analyse: (image: string, mediaType = 'image/jpeg'): Promise<any> =>
+    request<unknown>('/screenshot/analyse', {
+      method: 'POST',
+      body: JSON.stringify({ image, mediaType }),
+    }),
 };
 
 // Health

@@ -1,58 +1,63 @@
 import React, { useEffect, useState } from 'react';
-import { Save, TestTube, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Save, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, TestTube, Database } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { settingsApi, scraperApi } from '../lib/api';
 import { clsx } from '../lib/utils';
 
 interface FormState {
-  // AI
   anthropic_api_key: string;
-  // TAB
   tab_username: string;
   tab_password: string;
-  // Thresholds
+  odds_api_key: string;
+  betfair_app_key: string;
+  betfair_username: string;
+  betfair_password: string;
   confidence_threshold: string;
   sms_confidence_threshold: string;
   max_stake_percent: string;
   staking_mode: string;
-  // Twilio
   sms_enabled: string;
   twilio_account_sid: string;
   twilio_auth_token: string;
   twilio_from: string;
   twilio_to: string;
-  // App
   sound_enabled: string;
   scrape_interval_minutes: string;
   learning_enabled: string;
 }
 
+const DEFAULTS: FormState = {
+  anthropic_api_key: '',
+  tab_username: '',
+  tab_password: '',
+  odds_api_key: '',
+  betfair_app_key: '',
+  betfair_username: '',
+  betfair_password: '',
+  confidence_threshold: '65',
+  sms_confidence_threshold: '80',
+  max_stake_percent: '5',
+  staking_mode: 'kelly',
+  sms_enabled: 'false',
+  twilio_account_sid: '',
+  twilio_auth_token: '',
+  twilio_from: '',
+  twilio_to: '',
+  sound_enabled: 'true',
+  scrape_interval_minutes: '3',
+  learning_enabled: 'true',
+};
+
+const INPUT = 'w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50';
+
 export function Settings() {
   const { settings, updateSettings, addToast, scraperStatus, loadScraperStatus } = useAppStore();
   const [scraperErrors, setScraperErrors] = useState<string[]>([]);
-  const [form, setForm] = useState<FormState>({
-    anthropic_api_key: '',
-    tab_username: '',
-    tab_password: '',
-    confidence_threshold: '65',
-    sms_confidence_threshold: '80',
-    max_stake_percent: '5',
-    staking_mode: 'kelly',
-    sms_enabled: 'false',
-    twilio_account_sid: '',
-    twilio_auth_token: '',
-    twilio_from: '',
-    twilio_to: '',
-    sound_enabled: 'true',
-    scrape_interval_minutes: '3',
-    learning_enabled: 'true',
-  });
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showTabPw, setShowTabPw] = useState(false);
-  const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [form, setForm] = useState<FormState>(DEFAULTS);
+  const [show, setShow] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [smsTestResult, setSmsTestResult] = useState<{ success: boolean; error?: string } | null>(null);
-  const [testingSmS, setTestingSms] = useState(false);
+  const [testingSmS, setTestingSmS] = useState(false);
 
   useEffect(() => {
     scraperApi.errors().then(setScraperErrors).catch(() => {});
@@ -79,11 +84,15 @@ export function Settings() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function toggleShow(key: string) {
+    setShow((v) => ({ ...v, [key]: !v[key] }));
+  }
+
   async function save() {
     setSaving(true);
     try {
       await updateSettings(form as unknown as Record<string, string>);
-      addToast('success', 'Settings saved');
+      addToast('success', 'Settings saved to Supabase');
     } catch {
       addToast('error', 'Failed to save settings');
     } finally {
@@ -92,7 +101,7 @@ export function Settings() {
   }
 
   async function testSms() {
-    setTestingSms(true);
+    setTestingSmS(true);
     setSmsTestResult(null);
     try {
       const result = await settingsApi.testSms({
@@ -105,178 +114,115 @@ export function Settings() {
     } catch (err) {
       setSmsTestResult({ success: false, error: String(err) });
     } finally {
-      setTestingSms(false);
+      setTestingSmS(false);
     }
   }
 
+  const isSet = (flag: string) => settings?.[flag] === 'true';
+
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display font-bold text-2xl text-white">Settings</h1>
+    <div className="p-4 max-w-2xl mx-auto pb-24">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-white">Settings</h1>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Database size={11} className="text-green-edge" />
+            <p className="text-xs text-gray-500 font-mono">All keys saved to Supabase</p>
+          </div>
+        </div>
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-green-edge text-navy-950 rounded-xl text-sm font-display font-semibold hover:bg-green-dim disabled:opacity-50 transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 bg-green-edge text-navy-950 rounded-xl text-sm font-display font-semibold hover:bg-green-dim disabled:opacity-50 transition-all"
         >
           <Save size={14} />
           {saving ? 'Saving...' : 'Save All'}
         </button>
       </div>
 
-      <div className="flex flex-col gap-5">
-        {/* Scraper Status */}
-        <div className="bg-navy-800 border border-navy-700 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="font-display font-semibold text-white text-base">Scraper Status</h2>
-              <p className="text-xs text-gray-500 font-mono mt-0.5">
-                {scraperStatus?.running ? 'Running...' : scraperStatus?.last_run
-                  ? `Last run: ${new Date(scraperStatus.last_run).toLocaleTimeString('en-AU')}`
-                  : 'Never run'}
-                {scraperStatus?.events_scraped !== undefined && !scraperStatus.running
-                  ? ` · ${scraperStatus.events_scraped} events`
-                  : ''}
-              </p>
-            </div>
-            <button
-              onClick={() => { scraperApi.errors().then(setScraperErrors).catch(() => {}); loadScraperStatus(); }}
-              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-navy-700 transition-all">
-              <RefreshCw size={14} />
-            </button>
-          </div>
+      <div className="flex flex-col gap-4">
 
-          {scraperErrors.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-green-edge">
-              <CheckCircle size={14} />
-              <span className="font-mono">No errors</span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-red-edge">
-                  <AlertCircle size={14} />
-                  <span className="font-mono">{scraperErrors.length} error{scraperErrors.length > 1 ? 's' : ''}</span>
-                </div>
-              </div>
-              {scraperErrors.map((err, i) => (
-                <div key={i} className="bg-red-edge/10 border border-red-edge/20 rounded-xl px-3 py-2 text-xs font-mono text-red-400 break-all">
-                  {err}
-                </div>
-              ))}
-              <p className="text-xs text-gray-600 font-mono mt-1">
-                Errors clear automatically on next scrape run. Common causes: TAB credentials not set, Chromium not found, network timeout.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Data Sources */}
-        <Section title="Data Sources" subtitle="API keys for live odds & racing data">
-          <div className="bg-navy-900/50 border border-navy-600/50 rounded-xl p-3 mb-2">
-            <p className="text-xs text-gray-400 font-mono leading-relaxed">
-              <span className="text-amber-edge font-semibold">TAB.com.au blocks non-Australian IPs.</span> Set these keys in Railway environment variables to get live data from anywhere.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-mono text-gray-400">The Odds API Key — <span className="text-green-edge">Sports odds (NRL, AFL, NBA…)</span></label>
-                <a href="https://the-odds-api.com" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline">Get free key ↗</a>
-              </div>
-              <p className="text-xs text-gray-600 font-mono mb-1.5">Set as ODDS_API_KEY in Railway env vars. Free tier: 500 req/month. Returns real TAB odds.</p>
-              <div className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-500 italic">
-                {settings?.odds_api_key_set === 'true' ? '✓ ODDS_API_KEY is set in Railway' : '✗ ODDS_API_KEY not set — add to Railway Variables tab'}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-mono text-gray-400">BetFair App Key — <span className="text-green-edge">AU Horse racing</span></label>
-                <a href="https://developer.betfair.com" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline">Get free key ↗</a>
-              </div>
-              <p className="text-xs text-gray-600 font-mono mb-1.5">Set BETFAIR_APP_KEY + BETFAIR_USERNAME + BETFAIR_PASSWORD in Railway. Works globally, free for personal use.</p>
-              <div className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-500 italic">
-                {settings?.betfair_key_set === 'true' ? '✓ BetFair credentials set in Railway' : '✗ BETFAIR_APP_KEY not set — add to Railway Variables tab'}
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        {/* AI Section */}
-        <Section title="AI Engine" subtitle="Anthropic Claude configuration">
-          <Field label="Anthropic API Key">
-            <div className="relative">
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value={form.anthropic_api_key}
-                onChange={(e) => set('anthropic_api_key', e.target.value)}
-                placeholder={settings?.anthropic_key_set === 'true' ? '••••••••••• (key set)' : 'sk-ant-...'}
-                className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-              >
-                {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
+        {/* AI Engine */}
+        <Card title="AI Engine" ok={isSet('anthropic_key_set')}>
+          <Field label="Anthropic API Key" note="console.anthropic.com" ok={isSet('anthropic_key_set')}>
+            <PwInput
+              value={form.anthropic_api_key}
+              onChange={(v) => set('anthropic_api_key', v)}
+              placeholder={isSet('anthropic_key_set') ? '••••••••• (key saved in Supabase)' : 'sk-ant-api03-...'}
+              visible={!!show.anthropic}
+              onToggle={() => toggleShow('anthropic')}
+            />
           </Field>
-        </Section>
+        </Card>
 
-        {/* TAB Section */}
-        <Section title="TAB Australia" subtitle="Credentials for the automated scraper">
-          <Field label="TAB Username / Email">
+        {/* TAB Australia */}
+        <Card title="TAB Australia" ok={isSet('tab_username_set')}>
+          <p className="text-xs text-gray-600 font-mono -mt-2 mb-2">
+            Playwright scraper uses these to fetch live odds.
+          </p>
+          <Field label="Email / Username" ok={isSet('tab_username_set')}>
             <input
               type="text"
               value={form.tab_username}
               onChange={(e) => set('tab_username', e.target.value)}
-              placeholder={settings?.tab_username_set === 'true' ? '(username set)' : 'your@email.com'}
-              className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
+              placeholder={isSet('tab_username_set') ? '(saved)' : 'your@email.com'}
+              className={INPUT}
             />
           </Field>
-          <Field label="TAB Password">
-            <div className="relative">
-              <input
-                type={showTabPw ? 'text' : 'password'}
-                value={form.tab_password}
-                onChange={(e) => set('tab_password', e.target.value)}
-                placeholder={settings?.tab_username_set === 'true' ? '••••••••' : 'password'}
-                className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowTabPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-              >
-                {showTabPw ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
+          <Field label="Password">
+            <PwInput
+              value={form.tab_password}
+              onChange={(v) => set('tab_password', v)}
+              placeholder={isSet('tab_username_set') ? '(saved)' : 'password'}
+              visible={!!show.tab_pw}
+              onToggle={() => toggleShow('tab_pw')}
+            />
           </Field>
-        </Section>
+        </Card>
 
-        {/* Bankroll & Thresholds */}
-        <Section title="Bankroll & Staking" subtitle="Risk management configuration">
+        {/* Data Sources */}
+        <Card title="Data Sources">
+          <p className="text-xs text-gray-600 font-mono -mt-2 mb-2">
+            Optional — supplements AI analysis with live odds data.
+          </p>
+          <Field label="The Odds API Key" note="the-odds-api.com" ok={isSet('odds_api_key_set')}>
+            <PwInput
+              value={form.odds_api_key}
+              onChange={(v) => set('odds_api_key', v)}
+              placeholder={isSet('odds_api_key_set') ? '(key saved)' : 'api-key...'}
+              visible={!!show.odds}
+              onToggle={() => toggleShow('odds')}
+            />
+          </Field>
+          <Field label="BetFair App Key" note="developer.betfair.com" ok={isSet('betfair_key_set')}>
+            <PwInput
+              value={form.betfair_app_key}
+              onChange={(v) => set('betfair_app_key', v)}
+              placeholder={isSet('betfair_key_set') ? '(key saved)' : 'app-key...'}
+              visible={!!show.betfair}
+              onToggle={() => toggleShow('betfair')}
+            />
+          </Field>
+          {(form.betfair_app_key || isSet('betfair_key_set')) && (
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="BetFair Username">
+                <input type="text" value={form.betfair_username} onChange={(e) => set('betfair_username', e.target.value)} placeholder="username" className={INPUT} />
+              </Field>
+              <Field label="BetFair Password">
+                <PwInput value={form.betfair_password} onChange={(v) => set('betfair_password', v)} placeholder="password" visible={!!show.bf_pw} onToggle={() => toggleShow('bf_pw')} />
+              </Field>
+            </div>
+          )}
+        </Card>
+
+        {/* Bankroll & Staking */}
+        <Card title="Bankroll & Staking">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Confidence Threshold (%)">
-              <input
-                type="number"
-                value={form.confidence_threshold}
-                onChange={(e) => set('confidence_threshold', e.target.value)}
-                min={50}
-                max={95}
-                className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-green-edge/50"
-              />
+              <input type="number" value={form.confidence_threshold} onChange={(e) => set('confidence_threshold', e.target.value)} min={50} max={95} className={INPUT} />
             </Field>
             <Field label="Max Stake (% bankroll)">
-              <input
-                type="number"
-                value={form.max_stake_percent}
-                onChange={(e) => set('max_stake_percent', e.target.value)}
-                min={1}
-                max={25}
-                step={0.5}
-                className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-green-edge/50"
-              />
+              <input type="number" value={form.max_stake_percent} onChange={(e) => set('max_stake_percent', e.target.value)} min={1} max={25} step={0.5} className={INPUT} />
             </Field>
           </div>
           <Field label="Staking Mode">
@@ -298,188 +244,129 @@ export function Settings() {
               ))}
             </div>
           </Field>
-        </Section>
+        </Card>
 
         {/* Scraper */}
-        <Section title="Scraper" subtitle="Data collection settings">
+        <Card title="Scraper">
+          <div className="flex items-center gap-2 mb-3">
+            <div className={clsx('w-2 h-2 rounded-full shrink-0', scraperStatus?.running ? 'bg-green-edge animate-pulse' : 'bg-gray-600')} />
+            <span className="text-xs font-mono text-gray-400">
+              {scraperStatus?.running ? 'Running...' : scraperStatus?.last_run
+                ? `Last: ${new Date(scraperStatus.last_run).toLocaleTimeString('en-AU')}`
+                : 'Never run'}
+              {scraperStatus?.events_scraped !== undefined && !scraperStatus.running ? ` · ${scraperStatus.events_scraped} events` : ''}
+            </span>
+            <button onClick={() => { scraperApi.errors().then(setScraperErrors).catch(() => {}); loadScraperStatus(); }} className="ml-auto p-1 rounded text-gray-600 hover:text-white">
+              <RefreshCw size={13} />
+            </button>
+          </div>
+          {scraperErrors.map((err, i) => (
+            <div key={i} className="mb-2 bg-red-edge/10 border border-red-edge/20 rounded-xl px-3 py-2 text-xs font-mono text-red-400 break-all">{err}</div>
+          ))}
           <Field label="Scrape Interval (minutes)">
-            <input
-              type="number"
-              value={form.scrape_interval_minutes}
-              onChange={(e) => set('scrape_interval_minutes', e.target.value)}
-              min={1}
-              max={60}
-              className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-green-edge/50"
-            />
+            <input type="number" value={form.scrape_interval_minutes} onChange={(e) => set('scrape_interval_minutes', e.target.value)} min={1} max={60} className={INPUT} />
           </Field>
-        </Section>
+        </Card>
 
-        {/* Twilio */}
-        <Section title="SMS Alerts" subtitle="Twilio SMS for high-confidence bets">
-          <Field label="">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => set('sms_enabled', form.sms_enabled === 'true' ? 'false' : 'true')}
-                className={clsx(
-                  'w-10 h-5 rounded-full transition-all relative cursor-pointer',
-                  form.sms_enabled === 'true' ? 'bg-green-edge' : 'bg-navy-700'
-                )}
-              >
-                <div
-                  className={clsx(
-                    'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all',
-                    form.sms_enabled === 'true' ? 'left-5' : 'left-0.5'
-                  )}
-                />
-              </div>
-              <span className="text-sm text-gray-300">Enable SMS alerts</span>
-            </label>
-          </Field>
-
+        {/* SMS Alerts */}
+        <Card title="SMS Alerts" ok={isSet('twilio_configured')}>
+          <Toggle label="Enable SMS alerts" description="Twilio SMS for high-confidence bets" value={form.sms_enabled === 'true'} onChange={(v) => set('sms_enabled', v ? 'true' : 'false')} />
           {form.sms_enabled === 'true' && (
             <>
               <Field label="SMS Confidence Threshold (%)">
-                <input
-                  type="number"
-                  value={form.sms_confidence_threshold}
-                  onChange={(e) => set('sms_confidence_threshold', e.target.value)}
-                  min={50}
-                  max={100}
-                  className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-green-edge/50"
-                />
+                <input type="number" value={form.sms_confidence_threshold} onChange={(e) => set('sms_confidence_threshold', e.target.value)} min={50} max={100} className={INPUT} />
               </Field>
-              <Field label="Account SID">
-                <input
-                  type="text"
-                  value={form.twilio_account_sid}
-                  onChange={(e) => set('twilio_account_sid', e.target.value)}
-                  placeholder="ACxxxxxxxxxxxxxx"
-                  className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-                />
+              <Field label="Twilio Account SID">
+                <input type="text" value={form.twilio_account_sid} onChange={(e) => set('twilio_account_sid', e.target.value)} placeholder="ACxxxxxx" className={INPUT} />
               </Field>
-              <Field label="Auth Token">
-                <div className="relative">
-                  <input
-                    type={showTwilioToken ? 'text' : 'password'}
-                    value={form.twilio_auth_token}
-                    onChange={(e) => set('twilio_auth_token', e.target.value)}
-                    placeholder="your auth token"
-                    className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowTwilioToken((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-                  >
-                    {showTwilioToken ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
+              <Field label="Twilio Auth Token">
+                <PwInput value={form.twilio_auth_token} onChange={(v) => set('twilio_auth_token', v)} placeholder="auth token" visible={!!show.twilio_token} onToggle={() => toggleShow('twilio_token')} />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="From (Twilio number)">
-                  <input
-                    type="text"
-                    value={form.twilio_from}
-                    onChange={(e) => set('twilio_from', e.target.value)}
-                    placeholder="+61400000000"
-                    className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-                  />
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="From (Twilio #)">
+                  <input type="text" value={form.twilio_from} onChange={(e) => set('twilio_from', e.target.value)} placeholder="+61400000000" className={INPUT} />
                 </Field>
-                <Field label="To (your number)">
-                  <input
-                    type="text"
-                    value={form.twilio_to}
-                    onChange={(e) => set('twilio_to', e.target.value)}
-                    placeholder="+61400000001"
-                    className="w-full bg-navy-900 border border-navy-600 rounded-xl px-3 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-green-edge/50"
-                  />
+                <Field label="To (your #)">
+                  <input type="text" value={form.twilio_to} onChange={(e) => set('twilio_to', e.target.value)} placeholder="+61400000001" className={INPUT} />
                 </Field>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={testSms}
-                  disabled={testingSmS || !form.twilio_account_sid}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-navy-900 border border-navy-600 rounded-xl text-sm font-mono text-gray-300 hover:text-white disabled:opacity-50 transition-all"
-                >
+                <button onClick={testSms} disabled={testingSmS || !form.twilio_account_sid} className="flex items-center gap-2 px-4 py-2 bg-navy-900 border border-navy-600 rounded-xl text-sm font-mono text-gray-300 hover:text-white disabled:opacity-50 transition-all">
                   <TestTube size={14} />
                   {testingSmS ? 'Sending...' : 'Test SMS'}
                 </button>
                 {smsTestResult && (
-                  <div
-                    className={clsx(
-                      'flex items-center gap-2 text-sm font-mono',
-                      smsTestResult.success ? 'text-green-edge' : 'text-red-edge'
-                    )}
-                  >
+                  <span className={clsx('flex items-center gap-1.5 text-sm font-mono', smsTestResult.success ? 'text-green-edge' : 'text-red-edge')}>
                     {smsTestResult.success ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
                     {smsTestResult.success ? 'SMS sent!' : smsTestResult.error}
-                  </div>
+                  </span>
                 )}
               </div>
             </>
           )}
-        </Section>
+        </Card>
 
         {/* App */}
-        <Section title="Application" subtitle="UI preferences">
-          <div className="flex flex-col gap-3">
-            <Toggle
-              label="Sound notifications"
-              value={form.sound_enabled === 'true'}
-              onChange={(v) => set('sound_enabled', v ? 'true' : 'false')}
-            />
-            <Toggle
-              label="Learning system"
-              value={form.learning_enabled === 'true'}
-              onChange={(v) => set('learning_enabled', v ? 'true' : 'false')}
-              description="Inject past performance into AI prompts"
-            />
-          </div>
-        </Section>
+        <Card title="Application">
+          <Toggle label="Sound notifications" value={form.sound_enabled === 'true'} onChange={(v) => set('sound_enabled', v ? 'true' : 'false')} />
+          <Toggle label="Learning system" description="Inject past performance into AI prompts" value={form.learning_enabled === 'true'} onChange={(v) => set('learning_enabled', v ? 'true' : 'false')} />
+        </Card>
+
       </div>
     </div>
   );
 }
 
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
+function Card({ title, ok, children }: { title: string; ok?: boolean; children: React.ReactNode }) {
   return (
-    <div className="bg-navy-800 border border-navy-700 rounded-2xl p-5">
-      <h2 className="font-display font-semibold text-white text-base mb-0.5">{title}</h2>
-      <p className="text-xs text-gray-500 font-mono mb-4">{subtitle}</p>
+    <div className="bg-navy-800 border border-navy-700 rounded-2xl p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="font-display font-semibold text-white text-base">{title}</h2>
+        {ok !== undefined && (
+          ok
+            ? <CheckCircle size={14} className="text-green-edge ml-auto" />
+            : <AlertCircle size={14} className="text-gray-600 ml-auto" />
+        )}
+      </div>
       <div className="flex flex-col gap-3">{children}</div>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, note, ok, children }: { label?: string; note?: string; ok?: boolean; children: React.ReactNode }) {
   return (
     <div>
       {label && (
-        <label className="block text-xs font-mono text-gray-400 mb-1.5">{label}</label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-mono text-gray-400">{label}</label>
+          {note && <span className="text-xs font-mono text-gray-600">{note}</span>}
+          {ok !== undefined && (
+            <span className={clsx('text-xs font-mono', ok ? 'text-green-edge' : 'text-gray-600')}>
+              {ok ? '✓ saved' : 'not set'}
+            </span>
+          )}
+        </div>
       )}
       {children}
     </div>
   );
 }
 
-function Toggle({
-  label,
-  value,
-  onChange,
-  description,
-}: {
-  label: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-  description?: string;
+function PwInput({ value, onChange, placeholder, visible, onToggle }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; visible: boolean; onToggle: () => void;
+}) {
+  return (
+    <div className="relative">
+      <input type={visible ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={clsx(INPUT, 'pr-10')} />
+      <button type="button" onClick={onToggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+        {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+      </button>
+    </div>
+  );
+}
+
+function Toggle({ label, value, onChange, description }: {
+  label: string; value: boolean; onChange: (v: boolean) => void; description?: string;
 }) {
   return (
     <label className="flex items-center justify-between cursor-pointer">
@@ -487,19 +374,8 @@ function Toggle({
         <div className="text-sm text-gray-300">{label}</div>
         {description && <div className="text-xs text-gray-600 font-mono">{description}</div>}
       </div>
-      <div
-        onClick={() => onChange(!value)}
-        className={clsx(
-          'w-10 h-5 rounded-full transition-all relative cursor-pointer shrink-0',
-          value ? 'bg-green-edge' : 'bg-navy-700'
-        )}
-      >
-        <div
-          className={clsx(
-            'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all',
-            value ? 'left-5' : 'left-0.5'
-          )}
-        />
+      <div onClick={() => onChange(!value)} className={clsx('w-10 h-5 rounded-full transition-all relative cursor-pointer shrink-0 ml-4', value ? 'bg-green-edge' : 'bg-navy-700')}>
+        <div className={clsx('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all', value ? 'left-5' : 'left-0.5')} />
       </div>
     </label>
   );

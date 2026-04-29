@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -17,10 +17,15 @@ import {
   AlertCircle,
   Dices,
   X,
+  Camera,
+  DollarSign,
+  Lock,
+  Check,
 } from 'lucide-react';
 import { clsx, formatCurrency } from '../lib/utils';
 import { useAppStore } from '../store/useAppStore';
 import { useBettingStore } from '../store/useBettingStore';
+import { bankrollApi } from '../lib/api';
 
 interface NavItem {
   to: string;
@@ -35,6 +40,7 @@ const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { to: '/live', label: 'Live', icon: Radio, pulse: true },
   { to: '/pending', label: 'Pending Bets', icon: Clock },
+  { to: '/screenshot', label: 'Screenshot AI', icon: Camera },
   { to: '/racing', label: 'Racing', icon: Flag },
   { to: '/sports', label: 'Sports', icon: Gamepad2 },
   { to: '/active', label: 'Active Bets', icon: Activity },
@@ -48,9 +54,85 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+function BalanceModal({ onClose }: { onClose: () => void }) {
+  const { loadBankroll, addToast, bankrollStats } = useAppStore();
+  const [value, setValue] = useState(
+    bankrollStats ? bankrollStats.current_balance.toFixed(2) : ''
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const amount = parseFloat(value);
+    if (isNaN(amount) || amount <= 0) return;
+    setSaving(true);
+    try {
+      await bankrollApi.set(amount);
+      await loadBankroll();
+      addToast('success', `Balance set to ${formatCurrency(amount)}`);
+      onClose();
+    } catch {
+      addToast('error', 'Failed to update balance');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div
+        className="w-full max-w-sm bg-navy-800 border border-navy-700 rounded-2xl p-5 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-green-edge/20 flex items-center justify-center">
+            <DollarSign size={18} className="text-green-edge" />
+          </div>
+          <div>
+            <h3 className="font-display font-bold text-white">Update Balance</h3>
+            <p className="text-xs text-gray-500 font-mono">Enter your current TAB balance</p>
+          </div>
+        </div>
+
+        <div className="relative mb-4">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono">$</span>
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            min="0"
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            className="w-full bg-navy-900 border border-navy-600 rounded-xl pl-7 pr-3 py-3 text-white font-mono text-lg focus:outline-none focus:border-green-edge/50"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !value}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-sm hover:bg-green-dim disabled:opacity-50 transition-all"
+          >
+            <Check size={16} />
+            {saving ? 'Saving...' : 'Set Balance'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar({ open, onClose }: SidebarProps) {
-  const { bankrollStats, backendConnected, triggerScrape, scraperStatus } = useAppStore();
+  const { bankrollStats, backendConnected, triggerScrape, scraperStatus, lock } = useAppStore();
   const { pending } = useBettingStore();
+  const [showBalance, setShowBalance] = useState(false);
 
   return (
     <>
@@ -94,20 +176,42 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Bankroll summary */}
-        {bankrollStats && (
-          <div className="px-4 py-3 border-b border-navy-700">
-            <div className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Bankroll</div>
-            <div className="font-display font-bold text-lg text-white">
-              {formatCurrency(bankrollStats.current_balance)}
-            </div>
-            <div className={clsx('text-xs font-mono',
-              bankrollStats.net_pnl >= 0 ? 'text-green-edge' : 'text-red-edge'
-            )}>
-              {bankrollStats.net_pnl >= 0 ? '+' : ''}{formatCurrency(bankrollStats.net_pnl)} P&L
-            </div>
+        {/* Bankroll summary + update */}
+        <div className="px-4 py-3 border-b border-navy-700">
+          <div className="flex items-center justify-between mb-0.5">
+            <div className="text-xs text-gray-500 font-mono uppercase tracking-wider">Bankroll</div>
+            <button
+              onClick={() => setShowBalance(true)}
+              className="text-xs font-mono text-gray-500 hover:text-green-edge transition-all flex items-center gap-1"
+              title="Update balance"
+            >
+              <DollarSign size={10} />
+              Update
+            </button>
           </div>
-        )}
+          {bankrollStats ? (
+            <>
+              <button
+                onClick={() => setShowBalance(true)}
+                className="font-display font-bold text-lg text-white hover:text-green-edge transition-all"
+              >
+                {formatCurrency(bankrollStats.current_balance)}
+              </button>
+              <div className={clsx('text-xs font-mono',
+                bankrollStats.net_pnl >= 0 ? 'text-green-edge' : 'text-red-edge'
+              )}>
+                {bankrollStats.net_pnl >= 0 ? '+' : ''}{formatCurrency(bankrollStats.net_pnl)} P&L
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowBalance(true)}
+              className="text-sm font-mono text-gray-500 hover:text-green-edge transition-all"
+            >
+              Set balance →
+            </button>
+          )}
+        </div>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
@@ -171,17 +275,28 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 </div>
               )}
             </div>
-            <button
-              onClick={triggerScrape}
-              disabled={scraperStatus?.running}
-              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-navy-800 disabled:opacity-40 transition-all"
-              title="Trigger manual scrape"
-            >
-              <RefreshCw size={14} className={scraperStatus?.running ? 'animate-spin' : ''} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => lock()}
+                className="p-1.5 rounded-lg text-gray-600 hover:text-gray-400 hover:bg-navy-800 transition-all"
+                title="Lock app"
+              >
+                <Lock size={12} />
+              </button>
+              <button
+                onClick={triggerScrape}
+                disabled={scraperStatus?.running}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-navy-800 disabled:opacity-40 transition-all"
+                title="Trigger manual scrape"
+              >
+                <RefreshCw size={14} className={scraperStatus?.running ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
+
+      {showBalance && <BalanceModal onClose={() => setShowBalance(false)} />}
     </>
   );
 }

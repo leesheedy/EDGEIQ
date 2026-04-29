@@ -11,12 +11,13 @@ import { ActiveBets } from './screens/ActiveBets';
 import { History } from './screens/History';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
+import { ScreenshotAnalysis } from './screens/ScreenshotAnalysis';
 import { useAppStore } from './store/useAppStore';
 
 export default function App() {
-  const { onboardingComplete } = useAppStore();
+  const { authenticated } = useAppStore();
 
-  if (!onboardingComplete) {
+  if (!authenticated) {
     return <Onboarding />;
   }
 
@@ -25,6 +26,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/pending" element={<PendingBets />} />
+        <Route path="/screenshot" element={<ScreenshotAnalysis />} />
         <Route path="/racing" element={<Racing />} />
         <Route path="/sports" element={<Sports />} />
         <Route path="/live" element={<Live />} />
