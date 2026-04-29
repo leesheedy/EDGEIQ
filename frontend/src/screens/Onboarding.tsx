@@ -46,7 +46,7 @@ export function Onboarding() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-navy-950 flex flex-col items-center justify-center p-6 select-none">
+    <div className="min-h-[100dvh] bg-navy-950 flex flex-col items-center justify-center p-6 select-none" style={{ paddingTop: 'max(env(safe-area-inset-top, 44px), 24px)' }}>
       {/* Logo */}
       <div className="flex flex-col items-center gap-3 mb-14">
         <div className="w-16 h-16 rounded-2xl bg-green-edge flex items-center justify-center shadow-lg shadow-green-edge/30">

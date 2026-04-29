@@ -57,8 +57,11 @@ export function Layout() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar — safe-area-top pushes it below the iOS status bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-navy-700 bg-navy-900 shrink-0 safe-area-top">
+        {/* Fills the iOS status bar height so content sits below it */}
+        <div className="lg:hidden bg-navy-900 shrink-0" style={{ height: 'env(safe-area-inset-top, 44px)' }} />
+
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-navy-700 bg-navy-900 shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-3 -m-1 rounded-xl text-gray-400 hover:text-white hover:bg-navy-800 transition-all"
