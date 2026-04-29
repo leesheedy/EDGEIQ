@@ -149,8 +149,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         'fixed lg:relative',
         open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
-        {/* Logo */}
-        <div className="px-5 py-5 border-b border-navy-700 flex items-center justify-between">
+        {/* Logo — safe-area-top so it clears the iOS status bar when sidebar is open */}
+        <div className="px-5 py-5 border-b border-navy-700 flex items-center justify-between safe-area-top">
           <div>
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-green-edge flex items-center justify-center">

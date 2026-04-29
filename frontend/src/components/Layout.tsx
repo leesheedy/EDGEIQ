@@ -57,13 +57,13 @@ export function Layout() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-navy-700 bg-navy-900 shrink-0">
+        {/* Mobile top bar — safe-area-top pushes it below the iOS status bar */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-navy-700 bg-navy-900 shrink-0 safe-area-top">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-navy-800 transition-all"
+            className="p-3 -m-1 rounded-xl text-gray-400 hover:text-white hover:bg-navy-800 transition-all"
           >
-            <Menu size={20} />
+            <Menu size={22} />
           </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-green-edge flex items-center justify-center">
