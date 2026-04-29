@@ -250,6 +250,42 @@ export const db = {
     });
   },
 
+  // Screenshot analyses (scan drafts)
+  async saveScreenshotAnalysis(data: Record<string, unknown>): Promise<{ id: string } | null> {
+    const { data: row, error } = await supabase
+      .from('screenshot_analyses')
+      .insert(data)
+      .select('id')
+      .single();
+    if (error) { console.error('saveScreenshotAnalysis error:', error); return null; }
+    return row;
+  },
+
+  async getScreenshotAnalyses(limit = 50): Promise<Record<string, unknown>[]> {
+    const { data, error } = await supabase
+      .from('screenshot_analyses')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) { console.error('getScreenshotAnalyses error:', error); return []; }
+    return data || [];
+  },
+
+  async updateScreenshotAnalysis(id: string, updates: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+    const { data, error } = await supabase
+      .from('screenshot_analyses')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error('updateScreenshotAnalysis error:', error); return null; }
+    return data;
+  },
+
+  async deleteScreenshotAnalysis(id: string): Promise<void> {
+    await supabase.from('screenshot_analyses').delete().eq('id', id);
+  },
+
   async getRecentPerformanceSummary(): Promise<string> {
     const { data: bets } = await supabase
       .from('bets')

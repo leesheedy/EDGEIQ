@@ -147,6 +147,26 @@ export const screenshotApi = {
     }),
 };
 
+// Scan Drafts (screenshot analyses saved for outcome tracking)
+export const scanDraftsApi = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  save: (data: Record<string, unknown>): Promise<{ id: string }> =>
+    request<{ id: string }>('/scan-drafts', { method: 'POST', body: JSON.stringify(data) }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  list: (): Promise<any[]> => request<any[]>('/scan-drafts'),
+  update: (id: string, updates: {
+    status?: 'draft' | 'placed' | 'skipped';
+    placed_stake?: number;
+    outcome?: 'WON' | 'LOST' | 'VOID';
+    notes?: string;
+    odds?: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }): Promise<any> =>
+    request<unknown>(`/scan-drafts/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+  remove: (id: string): Promise<void> =>
+    request<void>(`/scan-drafts/${id}`, { method: 'DELETE' }),
+};
+
 // Health
 export const healthApi = {
   check: () => request<{ status: string; timestamp: string }>('/health'),

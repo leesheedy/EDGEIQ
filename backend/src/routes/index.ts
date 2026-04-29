@@ -7,6 +7,7 @@ import settingsRouter from './settings';
 import learningRouter from './learning';
 import scraperRouter from './scraper';
 import screenshotRouter from './screenshot';
+import screenshotAnalysesRouter from './screenshotAnalyses';
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.use('/settings', settingsRouter);
 router.use('/learning', learningRouter);
 router.use('/scraper', scraperRouter);
 router.use('/screenshot', screenshotRouter);
+router.use('/scan-drafts', screenshotAnalysesRouter);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
