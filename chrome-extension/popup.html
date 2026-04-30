@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EdgeIQ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #39d97c;
+      --green-dim: #2fc46e;
+      --green-bg: rgba(57,217,124,0.08);
+      --amber: #f5a623;
+      --amber-bg: rgba(245,166,35,0.08);
+      --red: #e85c5c;
+      --red-bg: rgba(232,92,92,0.08);
+      --navy-950: #040d1a;
+      --navy-900: #070c14;
+      --navy-800: #0a0f1a;
+      --navy-700: #0d1420;
+      --navy-600: #1e2a3a;
+      --navy-500: #2a3a4a;
+      --gray-700: #3a4a5a;
+      --gray-600: #4a5568;
+      --gray-500: #6b7a8d;
+      --gray-400: #8899aa;
+      --gray-300: #c8d0dc;
+      --white: #e8eaf0;
+    }
+
+    body {
+      width: 400px;
+      background: var(--navy-800);
+      color: var(--white);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .hdr {
+      background: var(--navy-900);
+      border-bottom: 1px solid var(--navy-600);
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hdr-left { display: flex; align-items: center; gap: 10px; }
+    .hdr-icon { font-size: 22px; line-height: 1; }
+
+    .hdr-brand { font-size: 16px; font-weight: 800; color: var(--green); letter-spacing: 0.04em; }
+    .hdr-sub { font-size: 9px; color: var(--gray-600); letter-spacing: 0.12em; text-transform: uppercase; font-family: monospace; }
+
+    .hdr-badge {
+      font-size: 9px; font-weight: 700; color: var(--gray-600);
+      border: 1px solid var(--navy-500); border-radius: 4px;
+      padding: 2px 6px; font-family: monospace; letter-spacing: 0.06em;
+    }
+
+    /* ── Nav tabs ─────────────────────────────────────────────────── */
+    .nav {
+      display: flex;
+      border-bottom: 1px solid var(--navy-600);
+      background: var(--navy-900);
+    }
+
+    .nav-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--gray-600);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 9px 4px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: monospace;
+    }
+    .nav-btn:hover { color: var(--gray-300); }
+    .nav-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* ── Panels ───────────────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Status panel ─────────────────────────────────────────────── */
+    .status-cards { display: flex; flex-direction: column; gap: 1px; background: var(--navy-600); }
+
+    .scard {
+      background: var(--navy-800);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .scard-icon {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .scard-icon.green { background: var(--green-bg); }
+    .scard-icon.amber { background: var(--amber-bg); }
+    .scard-icon.red   { background: var(--red-bg); }
+    .scard-icon.gray  { background: rgba(74,85,104,0.15); }
+
+    .scard-body { flex: 1; min-width: 0; }
+    .scard-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-600); font-family: monospace; margin-bottom: 2px; }
+    .scard-value { font-size: 13px; font-weight: 600; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .scard-value.green { color: var(--green); }
+    .scard-value.amber { color: var(--amber); }
+    .scard-value.red   { color: var(--red); }
+    .scard-value.gray  { color: var(--gray-600); }
+    .scard-sub { font-size: 10px; color: var(--gray-600); font-family: monospace; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot.green { background: var(--green); box-shadow: 0 0 6px rgba(57,217,124,0.5); animation: blink 2s ease-in-out infinite; }
+    .dot.amber { background: var(--amber); }
+    .dot.red   { background: var(--red); }
+    .dot.gray  { background: var(--gray-700); }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--navy-600);
+    }
+
+    .stat-cell {
+      background: var(--navy-800);
+      padding: 12px 8px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--green);
+      font-family: monospace;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .stat-num.loading { color: var(--gray-700); font-size: 16px; }
+    .stat-lbl { font-size: 9px; color: var(--gray-600); font-family: monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* ── Actions row ──────────────────────────────────────────────── */
+    .actions { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--navy-600); }
+
+    .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary { background: var(--green); color: var(--navy-900); }
+    .btn-primary:hover { background: var(--green-dim); }
+
+    .btn-ghost { background: var(--navy-700); border: 1px solid var(--navy-500); color: var(--gray-300); }
+    .btn-ghost:hover { border-color: var(--gray-600); color: var(--white); }
+
+    /* ── Config panel ─────────────────────────────────────────────── */
+    .cfg-body { display: flex; flex-direction: column; gap: 1px; background: var(--navy-600); }
+
+    .cfg-section { background: var(--navy-800); padding: 14px 16px; }
+
+    .cfg-title {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--gray-600); font-family: monospace;
+      margin-bottom: 10px; display: block;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+
+    .field-lbl {
+      font-size: 10px; color: var(--gray-500); font-family: monospace;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .field-lbl span { color: var(--gray-700); font-size: 9px; }
+
+    .inp {
+      background: var(--navy-700);
+      border: 1px solid var(--navy-500);
+      border-radius: 7px;
+      color: var(--white);
+      font-size: 11px;
+      font-family: monospace;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .inp:focus { border-color: var(--green); }
+    .inp::placeholder { color: var(--gray-700); }
+
+    .inp-row { display: flex; gap: 6px; }
+    .inp-row .inp { flex: 1; }
+
+    .btn-sm {
+      background: var(--green); color: var(--navy-900);
+      border: none; border-radius: 7px; padding: 0 12px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-sm:hover { background: var(--green-dim); }
+
+    .btn-sm-ghost {
+      background: transparent; color: var(--gray-400);
+      border: 1px solid var(--navy-500); border-radius: 7px;
+      padding: 0 10px; font-size: 11px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-sm-ghost:hover { border-color: var(--gray-600); color: var(--white); }
+
+    .feedback {
+      font-size: 10px; min-height: 14px; font-family: monospace;
+      transition: opacity 0.3s;
+    }
+    .feedback.ok { color: var(--green); }
+    .feedback.err { color: var(--red); }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .toggle-info { flex: 1; }
+    .toggle-lbl { font-size: 12px; color: var(--gray-300); }
+    .toggle-sub { font-size: 10px; color: var(--gray-600); font-family: monospace; margin-top: 1px; }
+
+    .toggle-switch {
+      width: 36px; height: 20px; border-radius: 10px;
+      background: var(--navy-500); cursor: pointer; position: relative;
+      flex-shrink: 0; transition: background 0.2s; border: none;
+    }
+    .toggle-switch.on { background: var(--green); }
+    .toggle-switch::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: white; transition: left 0.2s;
+    }
+    .toggle-switch.on::after { left: 18px; }
+
+    /* Health indicator */
+    .health-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px;
+      background: var(--navy-700);
+      border: 1px solid var(--navy-500);
+      border-radius: 7px;
+      margin-bottom: 10px;
+    }
+    .health-lbl { flex: 1; font-size: 11px; color: var(--gray-400); font-family: monospace; }
+    .health-val { font-size: 11px; font-weight: 700; }
+    .health-val.ok { color: var(--green); }
+    .health-val.err { color: var(--red); }
+    .health-val.loading { color: var(--gray-600); }
+
+    /* ── About panel ──────────────────────────────────────────────── */
+    .about-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .about-hero {
+      text-align: center; padding: 16px;
+      background: var(--navy-700); border: 1px solid var(--navy-500); border-radius: 10px;
+    }
+    .about-hero-icon { font-size: 40px; margin-bottom: 8px; }
+    .about-hero-name { font-size: 20px; font-weight: 800; color: var(--green); letter-spacing: 0.04em; }
+    .about-hero-desc { font-size: 11px; color: var(--gray-500); margin-top: 4px; }
+
+    .steps { display: flex; flex-direction: column; gap: 8px; }
+
+    .step {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px;
+      background: var(--navy-700); border: 1px solid var(--navy-600);
+      border-radius: 8px;
+    }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--green-bg); border: 1px solid rgba(57,217,124,0.3);
+      color: var(--green); font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-family: monospace; margin-top: 1px;
+    }
+    .step-text { font-size: 11px; color: var(--gray-400); line-height: 1.5; }
+    .step-text strong { color: var(--white); }
+
+    .stealth-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      background: rgba(57,217,124,0.05); border: 1px solid rgba(57,217,124,0.2);
+      border-radius: 8px;
+    }
+    .stealth-icon { font-size: 16px; }
+    .stealth-text { font-size: 10px; color: var(--gray-500); line-height: 1.4; }
+    .stealth-text strong { color: var(--green); font-family: monospace; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    .ftr {
+      background: var(--navy-900);
+      border-top: 1px solid var(--navy-600);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ftr-left { font-size: 9px; color: var(--gray-700); font-family: monospace; }
+    .ftr-right { font-size: 9px; color: var(--gray-700); font-family: monospace; }
+
+    /* Spinner */
+    .spin {
+      width: 14px; height: 14px;
+      border: 2px solid var(--navy-500);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: rotate 0.7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes rotate { to { transform: rotate(360deg); } }
+
+    .hide { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-icon">⚡</div>
+      <div>
+        <div class="hdr-brand">EdgeIQ</div>
+        <div class="hdr-sub">TAB Analyser</div>
+      </div>
+    </div>
+    <div class="hdr-badge">v1.1</div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <button class="nav-btn active" data-tab="status">Status</button>
+    <button class="nav-btn" data-tab="config">Config</button>
+    <button class="nav-btn" data-tab="about">Guide</button>
+  </div>
+
+  <!-- ═══ STATUS PANEL ═══ -->
+  <div class="panel active" id="panel-status">
+
+    <div class="status-cards">
+
+      <!-- Tab status -->
+      <div class="scard">
+        <div class="scard-icon" id="tab-icon">🌐</div>
+        <div class="scard-body">
+          <div class="scard-label">Current Page</div>
+          <div class="scard-value" id="tab-status">Checking…</div>
+          <div class="scard-sub" id="tab-url"></div>
+        </div>
+        <div class="dot gray" id="tab-dot"></div>
+      </div>
+
+      <!-- Backend status -->
+      <div class="scard">
+        <div class="scard-icon" id="backend-icon">🔌</div>
+        <div class="scard-body">
+          <div class="scard-label">Backend Connection</div>
+          <div class="scard-value" id="backend-status">Connecting…</div>
+          <div class="scard-sub" id="backend-url-display"></div>
+        </div>
+        <div class="dot gray" id="backend-dot"></div>
+      </div>
+
+      <!-- Stealth status -->
+      <div class="scard">
+        <div class="scard-icon gray">🛡️</div>
+        <div class="scard-body">
+          <div class="scard-label">Anti-Detection</div>
+          <div class="scard-value green">Stealth Mode Active</div>
+          <div class="scard-sub">Closed Shadow DOM · No page fingerprint</div>
+        </div>
+        <div class="dot green"></div>
+      </div>
+
+    </div>
+
+    <!-- Stats from backend -->
+    <div class="stats-row">
+      <div class="stat-cell">
+        <div class="stat-num loading" id="stat-balance">—</div>
+        <div class="stat-lbl">Balance</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num loading" id="stat-bets">—</div>
+        <div class="stat-lbl">Active Bets</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num loading" id="stat-winrate">—</div>
+        <div class="stat-lbl">Win Rate</div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="actions">
+      <a class="btn btn-primary" id="btn-go-tab" href="https://www.tab.com.au/racing" target="_blank">
+        🏇 Open TAB
+      </a>
+      <a class="btn btn-ghost" id="btn-open-app" href="#" target="_blank">
+        ⚡ Open EdgeIQ
+      </a>
+      <button class="btn btn-ghost" id="btn-refresh-stats" title="Refresh stats">
+        🔄
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ═══ CONFIG PANEL ═══ -->
+  <div class="panel" id="panel-config">
+    <div class="cfg-body">
+
+      <!-- Backend URL -->
+      <div class="cfg-section">
+        <span class="cfg-title">Backend Connection</span>
+
+        <div class="health-row">
+          <div class="health-lbl" id="health-url-display">checking…</div>
+          <div class="health-val loading" id="health-status">
+            <span class="spin"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-lbl">Backend URL <span>Railway deployment URL</span></div>
+          <div class="inp-row">
+            <input class="inp" type="url" id="backendUrlInput"
+              placeholder="https://edgeiq-production-6e47.up.railway.app"
+              spellcheck="false" autocomplete="off" />
+            <button class="btn-sm" id="saveUrlBtn">Save</button>
+          </div>
+        </div>
+
+        <div class="inp-row" style="margin-bottom:8px">
+          <button class="btn-sm-ghost" id="testConnectionBtn" style="flex:1">Test Connection</button>
+          <button class="btn-sm-ghost" id="resetUrlBtn">Reset Default</button>
+        </div>
+
+        <div class="feedback" id="urlFeedback"></div>
+      </div>
+
+      <!-- Analysis preferences -->
+      <div class="cfg-section">
+        <span class="cfg-title">Analysis Options</span>
+
+        <div class="toggle-row" style="margin-bottom:10px">
+          <div class="toggle-info">
+            <div class="toggle-lbl">Auto-expand panel</div>
+            <div class="toggle-sub">Open panel automatically on racing pages</div>
+          </div>
+          <button class="toggle-switch" id="toggle-autoexpand"></button>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-lbl">Sound on result</div>
+            <div class="toggle-sub">Play a chime when analysis completes</div>
+          </div>
+          <button class="toggle-switch" id="toggle-sound"></button>
+        </div>
+      </div>
+
+      <!-- Screenshot quality -->
+      <div class="cfg-section">
+        <span class="cfg-title">Screenshot Quality</span>
+
+        <div class="field">
+          <div class="field-lbl">JPEG Quality <span id="quality-display">90%</span></div>
+          <input class="inp" type="range" id="quality-slider" min="70" max="100" step="5" value="90"
+            style="padding:4px 0; accent-color: var(--green);" />
+        </div>
+        <div class="feedback ok" style="opacity:0.7;font-size:10px">Higher = better AI accuracy, larger upload</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ GUIDE PANEL ═══ -->
+  <div class="panel" id="panel-about">
+    <div class="about-body">
+
+      <div class="about-hero">
+        <div class="about-hero-icon">🏇</div>
+        <div class="about-hero-name">EdgeIQ</div>
+        <div class="about-hero-desc">AI-powered betting analysis for TAB.com.au</div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Navigate to <strong>tab.com.au/racing</strong> or <strong>tab.com.au/sports</strong> and find a race or market.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Click the <strong>⚡ tab</strong> on the right edge of the page to open the EdgeIQ panel.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Click <strong>"Analyse This Page"</strong> — EdgeIQ captures the screen and sends it to the AI.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Get a <strong>BET / WATCH / PASS / SKIP</strong> verdict with confidence score, edge (EV), runner breakdown, and probability table.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text">All scans auto-save to your <strong>EdgeIQ app → Scan History</strong> for outcome tracking.</div>
+        </div>
+      </div>
+
+      <div class="stealth-badge">
+        <div class="stealth-icon">🛡️</div>
+        <div class="stealth-text">
+          <strong>Stealth Mode:</strong> The panel runs inside a closed Shadow DOM. TAB's JavaScript cannot detect, query, or fingerprint the extension — it's completely invisible to the page.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="ftr">
+    <span class="ftr-left" id="ftr-backend">—</span>
+    <span class="ftr-right">EdgeIQ v1.1 · MV3</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

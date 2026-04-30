@@ -1,0 +1,833 @@
+/* EdgeIQ TAB Analyser — Injected Overlay Styles */
+/* All classes prefixed with edgeiq- to avoid conflicts */
+
+@media (max-width: 1023px) {
+  .edgeiq-panel {
+    display: none !important;
+  }
+}
+
+/* ─── Root panel wrapper ─────────────────────────────────────────── */
+.edgeiq-panel {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  pointer-events: none;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e8eaf0;
+  user-select: none;
+}
+
+/* ─── Toggle tab (always visible, narrow strip) ──────────────────── */
+.edgeiq-toggle {
+  pointer-events: all;
+  width: 28px;
+  background: #0a0f1a;
+  border: 1px solid #1e2a3a;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  box-shadow: -3px 0 16px rgba(0, 0, 0, 0.5);
+  min-height: 120px;
+}
+
+.edgeiq-toggle:hover {
+  background: #101828;
+  border-color: #39d97c;
+}
+
+.edgeiq-toggle-icon {
+  font-size: 14px;
+  line-height: 1;
+  display: block;
+}
+
+.edgeiq-toggle-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #39d97c;
+  font-family: system-ui, sans-serif;
+}
+
+/* ─── Main content panel ─────────────────────────────────────────── */
+.edgeiq-body {
+  pointer-events: all;
+  width: 360px;
+  background: #0a0f1a;
+  border: 1px solid #1e2a3a;
+  border-right: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease;
+}
+
+/* Collapsed state — body hidden */
+.edgeiq-panel.edgeiq-collapsed .edgeiq-body {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-left: none;
+  border-top: none;
+  border-bottom: none;
+}
+
+/* ─── Panel header ───────────────────────────────────────────────── */
+.edgeiq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #1e2a3a;
+  flex-shrink: 0;
+  background: #070c14;
+}
+
+.edgeiq-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edgeiq-logo-mark {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.edgeiq-brand {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #39d97c;
+}
+
+.edgeiq-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edgeiq-close-btn {
+  background: none;
+  border: none;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.edgeiq-close-btn:hover {
+  color: #e8eaf0;
+}
+
+/* ─── Scrollable content area ────────────────────────────────────── */
+.edgeiq-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #1e2a3a transparent;
+}
+
+.edgeiq-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.edgeiq-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edgeiq-content::-webkit-scrollbar-thumb {
+  background: #1e2a3a;
+  border-radius: 2px;
+}
+
+/* ─── Idle / call-to-action state ────────────────────────────────── */
+.edgeiq-idle {
+  padding: 20px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.edgeiq-idle-icon {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.edgeiq-idle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8eaf0;
+  margin: 0;
+}
+
+.edgeiq-idle-sub {
+  font-size: 11px;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Analyse button ─────────────────────────────────────────────── */
+.edgeiq-btn-analyse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #39d97c;
+  color: #070c14;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 0.2s ease, transform 0.1s ease;
+  width: 100%;
+  max-width: 220px;
+}
+
+.edgeiq-btn-analyse:hover {
+  background: #2fc46e;
+  transform: translateY(-1px);
+}
+
+.edgeiq-btn-analyse:active {
+  transform: translateY(0);
+}
+
+.edgeiq-btn-analyse:disabled {
+  background: #1a2a1a;
+  color: #3a5a3a;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── Loading state ──────────────────────────────────────────────── */
+.edgeiq-loading {
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.edgeiq-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #1e2a3a;
+  border-top-color: #39d97c;
+  border-radius: 50%;
+  animation: edgeiq-spin 0.8s linear infinite;
+}
+
+@keyframes edgeiq-spin {
+  to { transform: rotate(360deg); }
+}
+
+.edgeiq-loading-msg {
+  font-size: 12px;
+  color: #6b7a8d;
+  min-height: 18px;
+  transition: opacity 0.3s ease;
+}
+
+/* ─── Error state ────────────────────────────────────────────────── */
+.edgeiq-error {
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.edgeiq-error-icon {
+  font-size: 28px;
+}
+
+.edgeiq-error-msg {
+  font-size: 12px;
+  color: #e85c5c;
+  line-height: 1.5;
+  background: rgba(232, 92, 92, 0.08);
+  border: 1px solid rgba(232, 92, 92, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  width: 100%;
+  word-break: break-word;
+}
+
+/* ─── Retry / Again button ───────────────────────────────────────── */
+.edgeiq-btn-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: #39d97c;
+  border: 1px solid #39d97c;
+  border-radius: 7px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.edgeiq-btn-retry:hover {
+  background: rgba(57, 217, 124, 0.1);
+}
+
+/* ─── Results wrapper ────────────────────────────────────────────── */
+.edgeiq-results {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Section label ──────────────────────────────────────────────── */
+.edgeiq-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #3a4a5a;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  padding: 10px 14px 4px;
+  display: block;
+}
+
+/* ─── Recommendation header block ───────────────────────────────── */
+.edgeiq-rec-header {
+  margin: 0 12px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 4px solid #39d97c;
+  background: rgba(57, 217, 124, 0.06);
+  margin-bottom: 10px;
+}
+
+.edgeiq-rec-header.edgeiq-rec-BET {
+  border-left-color: #39d97c;
+  background: rgba(57, 217, 124, 0.07);
+}
+
+.edgeiq-rec-header.edgeiq-rec-WATCH {
+  border-left-color: #f5a623;
+  background: rgba(245, 166, 35, 0.07);
+}
+
+.edgeiq-rec-header.edgeiq-rec-PASS {
+  border-left-color: #e8743b;
+  background: rgba(232, 116, 59, 0.07);
+}
+
+.edgeiq-rec-header.edgeiq-rec-SKIP {
+  border-left-color: #4a5568;
+  background: rgba(74, 85, 104, 0.07);
+}
+
+.edgeiq-rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.edgeiq-rec-BET .edgeiq-rec-badge {
+  background: rgba(57, 217, 124, 0.2);
+  color: #39d97c;
+}
+
+.edgeiq-rec-WATCH .edgeiq-rec-badge {
+  background: rgba(245, 166, 35, 0.2);
+  color: #f5a623;
+}
+
+.edgeiq-rec-PASS .edgeiq-rec-badge {
+  background: rgba(232, 116, 59, 0.2);
+  color: #e8743b;
+}
+
+.edgeiq-rec-SKIP .edgeiq-rec-badge {
+  background: rgba(74, 85, 104, 0.2);
+  color: #8899aa;
+}
+
+.edgeiq-rec-event {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8d0dc;
+  margin-bottom: 5px;
+  word-break: break-word;
+}
+
+.edgeiq-rec-verdict {
+  font-size: 11px;
+  color: #6b7a8d;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ─── Stats grid (3 columns) ─────────────────────────────────────── */
+.edgeiq-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 0 12px 10px;
+  background: #1e2a3a;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #1e2a3a;
+}
+
+.edgeiq-stat-cell {
+  background: #0d1420;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.edgeiq-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #39d97c;
+  line-height: 1;
+}
+
+.edgeiq-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #3a4a5a;
+  font-family: monospace;
+}
+
+/* ─── Selection name ─────────────────────────────────────────────── */
+.edgeiq-selection {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  background: #0d1420;
+  border: 1px solid #1e2a3a;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edgeiq-selection-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3a4a5a;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.edgeiq-selection-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8eaf0;
+  word-break: break-word;
+}
+
+/* ─── Key stat ───────────────────────────────────────────────────── */
+.edgeiq-key-stat {
+  margin: 0 12px 10px;
+  padding: 8px 12px;
+  background: rgba(57, 217, 124, 0.05);
+  border: 1px solid rgba(57, 217, 124, 0.15);
+  border-radius: 7px;
+  font-size: 11px;
+  color: #8ad4a8;
+  line-height: 1.5;
+}
+
+.edgeiq-key-stat::before {
+  content: '★ ';
+  color: #39d97c;
+}
+
+/* ─── Pass/Skip no-value block ───────────────────────────────────── */
+.edgeiq-no-value {
+  margin: 0 12px 10px;
+  padding: 12px 14px;
+  background: rgba(232, 116, 59, 0.06);
+  border: 1px solid rgba(232, 116, 59, 0.15);
+  border-radius: 7px;
+}
+
+.edgeiq-no-value-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8743b;
+  margin-bottom: 6px;
+}
+
+.edgeiq-pass-reason {
+  font-size: 11px;
+  color: #8899aa;
+  line-height: 1.5;
+}
+
+/* ─── Wait-for box (amber) ───────────────────────────────────────── */
+.edgeiq-wait-box {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  background: rgba(245, 166, 35, 0.06);
+  border: 1px solid rgba(245, 166, 35, 0.25);
+  border-radius: 7px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.edgeiq-wait-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.edgeiq-wait-text {
+  font-size: 11px;
+  color: #c9933a;
+  line-height: 1.5;
+}
+
+/* ─── Risk flags ─────────────────────────────────────────────────── */
+.edgeiq-risk-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 12px 10px;
+}
+
+.edgeiq-risk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(232, 92, 92, 0.1);
+  border: 1px solid rgba(232, 92, 92, 0.2);
+  border-radius: 20px;
+  font-size: 10px;
+  color: #e85c5c;
+  line-height: 1.3;
+}
+
+.edgeiq-risk-chip::before {
+  content: '⚠';
+  font-size: 9px;
+}
+
+/* ─── Collapsible full analysis ──────────────────────────────────── */
+.edgeiq-details-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-top: 1px solid #1e2a3a;
+  border-bottom: 1px solid #1e2a3a;
+  background: #070c14;
+  user-select: none;
+}
+
+.edgeiq-details-toggle:hover {
+  background: #0d1420;
+}
+
+.edgeiq-details-toggle-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a5568;
+  font-family: monospace;
+}
+
+.edgeiq-details-arrow {
+  font-size: 10px;
+  color: #4a5568;
+  transition: transform 0.2s ease;
+}
+
+.edgeiq-details-toggle.edgeiq-open .edgeiq-details-arrow {
+  transform: rotate(180deg);
+}
+
+.edgeiq-details-body {
+  display: none;
+  padding: 12px 14px;
+  background: #070c14;
+  border-bottom: 1px solid #1e2a3a;
+}
+
+.edgeiq-details-body.edgeiq-open {
+  display: block;
+}
+
+.edgeiq-reasoning {
+  font-size: 11px;
+  color: #6b7a8d;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Runners list ───────────────────────────────────────────────── */
+.edgeiq-runners {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 2px;
+}
+
+.edgeiq-runner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: #0a0f1a;
+  transition: background 0.1s;
+}
+
+.edgeiq-runner-row:hover {
+  background: #0d1420;
+}
+
+.edgeiq-runner-row.edgeiq-selected {
+  background: rgba(57, 217, 124, 0.08);
+  border-left: 3px solid #39d97c;
+  padding-left: 11px;
+}
+
+.edgeiq-barrier {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1e2a3a;
+  color: #8899aa;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: monospace;
+}
+
+.edgeiq-runner-row.edgeiq-selected .edgeiq-barrier {
+  background: rgba(57, 217, 124, 0.2);
+  color: #39d97c;
+}
+
+.edgeiq-runner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.edgeiq-runner-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8d0dc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edgeiq-runner-row.edgeiq-selected .edgeiq-runner-name {
+  color: #39d97c;
+}
+
+.edgeiq-runner-jockey {
+  font-size: 10px;
+  color: #4a5568;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edgeiq-runner-odds {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8899aa;
+  font-family: 'SF Mono', monospace;
+  flex-shrink: 0;
+}
+
+.edgeiq-runner-row.edgeiq-selected .edgeiq-runner-odds {
+  color: #39d97c;
+}
+
+/* ─── Probability table ──────────────────────────────────────────── */
+.edgeiq-prob-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.edgeiq-prob-table th {
+  padding: 5px 8px;
+  text-align: left;
+  color: #3a4a5a;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #1e2a3a;
+  font-size: 9px;
+}
+
+.edgeiq-prob-table th:last-child {
+  text-align: center;
+}
+
+.edgeiq-prob-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #0d1420;
+  color: #8899aa;
+  vertical-align: middle;
+}
+
+.edgeiq-prob-table tr:last-child td {
+  border-bottom: none;
+}
+
+.edgeiq-prob-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.edgeiq-prob-runner-name {
+  color: #c8d0dc;
+  font-weight: 600;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.edgeiq-value-badge {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 18px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.edgeiq-value-good {
+  background: rgba(57, 217, 124, 0.2);
+  color: #39d97c;
+}
+
+.edgeiq-value-poor {
+  background: rgba(232, 92, 92, 0.15);
+  color: #e85c5c;
+}
+
+.edgeiq-value-fair {
+  background: rgba(74, 85, 104, 0.3);
+  color: #6b7a8d;
+}
+
+/* ─── Table wrapper ──────────────────────────────────────────────── */
+.edgeiq-table-wrap {
+  padding: 0 12px 10px;
+  overflow-x: auto;
+}
+
+/* ─── Bottom action bar ──────────────────────────────────────────── */
+.edgeiq-footer {
+  padding: 10px 12px;
+  border-top: 1px solid #1e2a3a;
+  background: #070c14;
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.edgeiq-btn-again {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  color: #39d97c;
+  border: 1px solid rgba(57, 217, 124, 0.4);
+  border-radius: 7px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.edgeiq-btn-again:hover {
+  background: rgba(57, 217, 124, 0.08);
+  border-color: #39d97c;
+}
+
+/* ─── Divider ────────────────────────────────────────────────────── */
+.edgeiq-divider {
+  height: 1px;
+  background: #1e2a3a;
+  margin: 4px 0;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────── */
+.edgeiq-hidden {
+  display: none !important;
+}
+
+.edgeiq-mt4 {
+  margin-top: 4px;
+}
+
+.edgeiq-mb8 {
+  margin-bottom: 8px;
+}
