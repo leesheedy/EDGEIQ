@@ -167,7 +167,13 @@ async function runTwoStageAnalysis(
     throw new Error('Analysis incomplete — please try again');
   }
 
-  return { ...extracted, ...research };
+  // Normalize: Claude sometimes returns flat { "recommendation": "BET", "bet_type": ... }
+  // instead of the requested nested { "recommendation": { "recommendation": "BET", ... } }
+  const rec = typeof research.recommendation === 'string' || !research.recommendation?.recommendation
+    ? research        // flat — the research object itself is the recommendation
+    : research.recommendation;
+
+  return { ...extracted, recommendation: rec };
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────

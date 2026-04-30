@@ -924,8 +924,8 @@ export function ScreenshotAnalysis() {
                         </div>
                         <div className="bg-navy-900 rounded-xl p-3 text-center">
                           <div className="text-xs text-gray-500 font-mono mb-1">EV</div>
-                          <span className={clsx('text-sm font-mono font-medium', rec.expected_value > 0 ? 'text-green-edge' : 'text-red-edge')}>
-                            {formatEV(rec.expected_value)}
+                          <span className={clsx('text-sm font-mono font-medium', (rec.expected_value ?? 0) > 0 ? 'text-green-edge' : 'text-red-edge')}>
+                            {formatEV(rec.expected_value ?? 0)}
                           </span>
                         </div>
                       </div>
@@ -971,12 +971,12 @@ export function ScreenshotAnalysis() {
                         </div>
                         <div className="bg-navy-900 rounded-xl p-3 text-center">
                           <div className="text-xs text-gray-500 font-mono mb-1">STAKE %</div>
-                          <span className="text-sm font-mono font-medium text-white">{rec.suggested_stake_percent.toFixed(1)}%</span>
+                          <span className="text-sm font-mono font-medium text-white">{(rec.suggested_stake_percent ?? 0).toFixed(1)}%</span>
                         </div>
                         <div className="bg-navy-900 rounded-xl p-3 text-center">
                           <div className="text-xs text-gray-500 font-mono mb-1">EV</div>
-                          <span className={clsx('text-sm font-mono font-medium', rec.expected_value > 0 ? 'text-green-edge' : 'text-red-edge')}>
-                            {formatEV(rec.expected_value)}
+                          <span className={clsx('text-sm font-mono font-medium', (rec.expected_value ?? 0) > 0 ? 'text-green-edge' : 'text-red-edge')}>
+                            {formatEV(rec.expected_value ?? 0)}
                           </span>
                         </div>
                       </div>
