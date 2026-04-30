@@ -10,25 +10,7 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowed = [
-      config.frontendUrl,
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://edgeiqsite.netlify.app',
-    ].filter(Boolean);
-    // Allow requests with no origin (server-to-server, mobile apps)
-    // and tab.com.au for the Chrome extension content script
-    if (!origin) return callback(null, true);
-    if (allowed.includes(origin)) return callback(null, true);
-    if (/https?:\/\/(www\.)?tab\.com\.au$/.test(origin)) return callback(null, true);
-    if (/^chrome-extension:\/\//.test(origin)) return callback(null, true);
-    if (/^moz-extension:\/\//.test(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
-}));
+app.use(cors({ origin: true, credentials: true }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

@@ -168,28 +168,56 @@ async function runTwoStageAnalysis(
   perfContext: string,
 ) {
   // Stage 1: Vision extraction — pull all structured data from the screenshot(s)
+  // Assistant prefill forces JSON output with no preamble ("Sure! Here is..." etc.)
   const extractMsg = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 3000,
     system: 'You extract structured data from betting screenshots. Return ONLY valid JSON. No markdown, no explanation.',
-    messages: [{
-      role: 'user',
-      content: [
-        ...imageBlocks,
-        {
-          type: 'text',
-          text: imageCount > 1
-            ? `These are ${imageCount} screenshots of the same TAB.com.au page. Combine all visible information.\n\n${EXTRACT_PROMPT}`
-            : EXTRACT_PROMPT,
-        },
-      ],
-    }],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...imageBlocks,
+          {
+            type: 'text',
+            text: imageCount > 1
+              ? `These are ${imageCount} screenshots of the same TAB.com.au page. Combine all visible information.\n\n${EXTRACT_PROMPT}`
+              : EXTRACT_PROMPT,
+          },
+        ],
+      },
+      { role: 'assistant', content: '{' },
+    ],
   });
 
-  const rawExtract = getTextContent(extractMsg);
+  const rawExtract = '{' + getTextContent(extractMsg);
   console.log('[Screenshot] Stage1 raw:', rawExtract.slice(0, 300));
 
-  const extracted = extractJson(rawExtract);
+  let extracted = extractJson(rawExtract);
+
+  // Retry with a minimal prompt if first attempt still failed to parse
+  if (!extracted) {
+    console.warn('[Screenshot] Stage1 parse failed — retrying with minimal prompt');
+    const retryMsg = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      system: 'Extract betting data from the screenshot. Return ONLY valid JSON.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            ...imageBlocks,
+            { type: 'text', text: 'Return JSON with: sport, event_name, venue, runners (name, odds), track_condition, distance, race_number. No other text.' },
+          ],
+        },
+        { role: 'assistant', content: '{' },
+      ],
+    });
+    const rawRetry = '{' + getTextContent(retryMsg);
+    console.log('[Screenshot] Stage1 retry raw:', rawRetry.slice(0, 300));
+    extracted = extractJson(rawRetry);
+  }
+
   if (!extracted) {
     const preview = rawExtract.slice(0, 200).replace(/\n/g, ' ');
     throw new Error(`Could not parse screenshot data — Claude responded: "${preview}". Try a clearer screenshot showing runners and odds.`);
@@ -200,13 +228,13 @@ async function runTwoStageAnalysis(
     model: 'claude-sonnet-4-6',
     max_tokens: 4000,
     system: SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: [{ type: 'text', text: buildResearchPrompt(extracted, perfContext) }],
-    }],
+    messages: [
+      { role: 'user', content: [{ type: 'text', text: buildResearchPrompt(extracted, perfContext) }] },
+      { role: 'assistant', content: '{' },
+    ],
   });
 
-  const rawResearch = getTextContent(researchMsg);
+  const rawResearch = '{' + getTextContent(researchMsg);
   console.log('[Screenshot] Stage2 raw:', rawResearch.slice(0, 300));
 
   const research = extractJson(rawResearch);
