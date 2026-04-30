@@ -8,6 +8,7 @@ import learningRouter from './learning';
 import scraperRouter from './scraper';
 import screenshotRouter from './screenshot';
 import screenshotAnalysesRouter from './screenshotAnalyses';
+import streamsRouter from './streams';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use('/learning', learningRouter);
 router.use('/scraper', scraperRouter);
 router.use('/screenshot', screenshotRouter);
 router.use('/scan-drafts', screenshotAnalysesRouter);
+router.use('/streams', streamsRouter);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

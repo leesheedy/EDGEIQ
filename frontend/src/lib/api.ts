@@ -167,6 +167,11 @@ export const scanDraftsApi = {
     request<void>(`/scan-drafts/${id}`, { method: 'DELETE' }),
 };
 
+// Streams
+export const streamsApi = {
+  list: () => request<import('../screens/Watch').StreamSource[]>('/streams'),
+};
+
 // Health
 export const healthApi = {
   check: () => request<{ status: string; timestamp: string }>('/health'),

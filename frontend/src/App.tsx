@@ -12,6 +12,7 @@ import { History } from './screens/History';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
 import { ScreenshotAnalysis } from './screens/ScreenshotAnalysis';
+import { Watch } from './screens/Watch';
 import { useAppStore } from './store/useAppStore';
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/sports" element={<Sports />} />
         <Route path="/live" element={<Live />} />
         <Route path="/casino" element={<Casino />} />
+        <Route path="/watch" element={<Watch />} />
         <Route path="/active" element={<ActiveBets />} />
         <Route path="/history" element={<History />} />
         <Route path="/settings" element={<Settings />} />

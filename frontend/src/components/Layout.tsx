@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Menu, Zap, LayoutDashboard, Clock, Camera, Activity, Settings } from 'lucide-react';
+import { Menu, Zap, LayoutDashboard, Clock, Camera, Tv, Settings } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ToastContainer } from './Toast';
 import { useAppStore } from '../store/useAppStore';
@@ -12,7 +12,7 @@ const BOTTOM_NAV = [
   { to: '/', label: 'Home', icon: LayoutDashboard, exact: true },
   { to: '/pending', label: 'Bets', icon: Clock },
   { to: '/screenshot', label: 'Scan', icon: Camera, highlight: true },
-  { to: '/active', label: 'Active', icon: Activity },
+  { to: '/watch', label: 'Watch', icon: Tv },
   { to: '/settings', label: 'More', icon: Settings },
 ];
 

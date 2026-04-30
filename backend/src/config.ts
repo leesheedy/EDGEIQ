@@ -48,6 +48,8 @@ export const config = {
     confidence: parseInt(process.env.CONFIDENCE_THRESHOLD || '65', 10),
     smsConfidence: parseInt(process.env.SMS_CONFIDENCE_THRESHOLD || '80', 10),
   },
+
+  youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
 };
 
 export function validateConfig(): string[] {

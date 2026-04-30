@@ -21,6 +21,7 @@ import {
   DollarSign,
   Lock,
   Check,
+  Tv,
 } from 'lucide-react';
 import { clsx, formatCurrency } from '../lib/utils';
 import { useAppStore } from '../store/useAppStore';
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { to: '/screenshot', label: 'Screenshot AI', icon: Camera },
   { to: '/racing', label: 'Racing', icon: Flag },
   { to: '/sports', label: 'Sports', icon: Gamepad2 },
+  { to: '/watch', label: 'Watch Live', icon: Tv },
   { to: '/active', label: 'Active Bets', icon: Activity },
   { to: '/history', label: 'History', icon: History },
   { to: '/casino', label: 'Casino', icon: Dices, section: 'Casino' },
