@@ -307,20 +307,19 @@
       if (stored && stored.backendUrl) backendUrl = stored.backendUrl;
     } catch (_) {}
 
+    // Route through background service worker — avoids CORS because background
+    // requests use the extension's host_permissions, not the page's origin.
     let responseData;
     try {
-      const resp = await fetch(`${backendUrl}/api/screenshot/analyse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: screenshotResult.dataUrl, mediaType: 'image/jpeg' }),
+      const analysisResult = await sendMessage({
+        type: 'ANALYSE_PAGE',
+        backendUrl,
+        image: screenshotResult.dataUrl,
+        mediaType: 'image/jpeg',
       });
 
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => `HTTP ${resp.status}`);
-        throw new Error(`Server error ${resp.status}: ${errText.slice(0, 200)}`);
-      }
-
-      responseData = await resp.json();
+      if (analysisResult.error) throw new Error(analysisResult.error);
+      responseData = analysisResult.data;
     } catch (err) {
       stopLoadingMessages();
       showError('Analysis failed: ' + (err.message || String(err)));
