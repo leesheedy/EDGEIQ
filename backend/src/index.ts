@@ -18,8 +18,12 @@ app.use(cors({
       'http://localhost:3000',
       'https://edgeiqsite.netlify.app',
     ].filter(Boolean);
-    if (!origin || allowed.includes(origin)) callback(null, true);
-    else callback(new Error(`CORS blocked: ${origin}`));
+    // Allow requests with no origin (server-to-server, mobile apps)
+    // and tab.com.au for the Chrome extension content script
+    if (!origin) return callback(null, true);
+    if (allowed.includes(origin)) return callback(null, true);
+    if (/https?:\/\/(www\.)?tab\.com\.au$/.test(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
 }));
