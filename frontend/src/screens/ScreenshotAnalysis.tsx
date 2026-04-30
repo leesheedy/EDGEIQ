@@ -1027,7 +1027,9 @@ export function ScreenshotAnalysis() {
                           <span className="flex-1 text-sm text-white font-medium truncate">{runner.name}</span>
                           {runner.jockey && <span className="text-xs text-gray-500 font-mono hidden sm:block truncate max-w-[80px]">{runner.jockey}</span>}
                           {runner.form && <span className="text-xs text-gray-600 font-mono hidden sm:block">{runner.form}</span>}
-                          <span className="text-sm font-mono text-green-edge shrink-0">${runner.odds.toFixed(2)}</span>
+                          {runner.odds != null && (
+                            <span className="text-sm font-mono text-green-edge shrink-0">${runner.odds.toFixed(2)}</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1053,10 +1055,10 @@ export function ScreenshotAnalysis() {
                             <td className={clsx('py-1.5 truncate max-w-[120px]',
                               row.value_rating === 'good' ? 'text-green-edge' : row.value_rating === 'poor' ? 'text-red-edge/80' : 'text-gray-400'
                             )}>{row.runner}</td>
-                            <td className="text-right text-gray-500">{row.implied_prob.toFixed(1)}%</td>
+                            <td className="text-right text-gray-500">{(row.implied_prob ?? 0).toFixed(1)}%</td>
                             <td className={clsx('text-right font-medium',
-                              row.true_prob > row.implied_prob ? 'text-green-edge' : 'text-gray-400'
-                            )}>{row.true_prob.toFixed(1)}%</td>
+                              (row.true_prob ?? 0) > (row.implied_prob ?? 0) ? 'text-green-edge' : 'text-gray-400'
+                            )}>{(row.true_prob ?? 0).toFixed(1)}%</td>
                             <td className={clsx('text-right font-bold',
                               row.value_rating === 'good' ? 'text-green-edge' : row.value_rating === 'poor' ? 'text-red-edge/70' : 'text-gray-500'
                             )}>
