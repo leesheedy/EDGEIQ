@@ -23,6 +23,8 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (allowed.includes(origin)) return callback(null, true);
     if (/https?:\/\/(www\.)?tab\.com\.au$/.test(origin)) return callback(null, true);
+    if (/^chrome-extension:\/\//.test(origin)) return callback(null, true);
+    if (/^moz-extension:\/\//.test(origin)) return callback(null, true);
     callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
