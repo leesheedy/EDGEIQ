@@ -161,6 +161,29 @@ function getTextContent(msg: Anthropic.Message): string {
     .join('');
 }
 
+async function runStage2Analysis(
+  client: Anthropic,
+  extracted: Record<string, unknown>,
+  perfContext: string,
+): Promise<Record<string, unknown>> {
+  const researchMsg = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4000,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: [{ type: 'text', text: buildResearchPrompt(extracted, perfContext) }] }],
+  });
+  const rawResearch = getTextContent(researchMsg);
+  console.log('[Screenshot] Stage2 raw:', rawResearch.slice(0, 300));
+  const research = extractJson(rawResearch);
+  if (!research?.recommendation) {
+    throw new Error('Analysis did not return a recommendation — please try again');
+  }
+  const inner = research.recommendation as Record<string, unknown> | string;
+  const rec = typeof inner === 'string' || !(inner as Record<string, unknown>)?.recommendation
+    ? research : inner;
+  return { ...extracted, recommendation: rec };
+}
+
 async function runTwoStageAnalysis(
   client: Anthropic,
   imageBlocks: ImageBlock[],
@@ -220,32 +243,7 @@ async function runTwoStageAnalysis(
     throw new Error(`Could not parse screenshot data — Claude responded: "${preview}". Try a clearer screenshot showing runners and odds.`);
   }
 
-  // Stage 2: Deep research + recommendation (text only, no image tokens needed)
-  const researchMsg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: SYSTEM_PROMPT,
-    messages: [
-      { role: 'user', content: [{ type: 'text', text: buildResearchPrompt(extracted, perfContext) }] },
-    ],
-  });
-
-  const rawResearch = getTextContent(researchMsg);
-  console.log('[Screenshot] Stage2 raw:', rawResearch.slice(0, 300));
-
-  const research = extractJson(rawResearch);
-  if (!research?.recommendation) {
-    throw new Error('Analysis did not return a recommendation — please try again');
-  }
-
-  // Normalize: Claude sometimes returns flat { "recommendation": "BET", "bet_type": ... }
-  // instead of the requested nested { "recommendation": { "recommendation": "BET", ... } }
-  const inner = research.recommendation as Record<string, unknown> | string;
-  const rec = typeof inner === 'string' || !(inner as Record<string, unknown>)?.recommendation
-    ? research
-    : inner;
-
-  return { ...extracted, recommendation: rec };
+  return await runStage2Analysis(client, extracted, perfContext);
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -284,6 +282,44 @@ router.post('/analyse', async (req, res) => {
     res.json({ data: result });
   } catch (err) {
     console.error('Screenshot analysis error:', err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Analysis failed' });
+  }
+});
+
+router.post('/analyse-text', async (req, res) => {
+  try {
+    const { pageText, pageUrl } = req.body as { pageText: string; pageUrl?: string };
+    if (!pageText) return res.status(400).json({ error: 'No page text provided' });
+
+    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    if (!apiKey) return res.status(400).json({ error: 'Anthropic API key not configured — add it in Settings' });
+
+    const client = new Anthropic({ apiKey });
+    const perfContext = await db.getScanDraftsPerformanceSummary().catch(() => '');
+
+    const extractMsg = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
+      system: 'You extract structured betting data from TAB.com.au page text. Return ONLY valid JSON. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `URL: ${pageUrl || 'tab.com.au'}\n\nPage text:\n${pageText.slice(0, 8000)}\n\n${EXTRACT_PROMPT}`,
+      }],
+    });
+
+    const rawExtract = getTextContent(extractMsg);
+    console.log('[Screenshot] TextStage1 raw:', rawExtract.slice(0, 300));
+
+    const extracted = extractJson(rawExtract);
+    if (!extracted) {
+      const preview = rawExtract.slice(0, 200).replace(/\n/g, ' ');
+      throw new Error(`Could not parse page data — "${preview}". Try refreshing the page.`);
+    }
+
+    const result = await runStage2Analysis(client, extracted, perfContext);
+    res.json({ data: result });
+  } catch (err) {
+    console.error('Text analysis error:', err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Analysis failed' });
   }
 });

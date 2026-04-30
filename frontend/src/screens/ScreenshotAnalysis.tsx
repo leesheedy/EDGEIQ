@@ -970,8 +970,15 @@ export function ScreenshotAnalysis() {
                           <OddsDisplay odds={bestOdds} size="sm" />
                         </div>
                         <div className="bg-navy-900 rounded-xl p-3 text-center">
-                          <div className="text-xs text-gray-500 font-mono mb-1">STAKE %</div>
-                          <span className="text-sm font-mono font-medium text-white">{(rec.suggested_stake_percent ?? 0).toFixed(1)}%</span>
+                          <div className="text-xs text-gray-500 font-mono mb-1">STAKE</div>
+                          {bankrollStats?.current_balance && (rec.suggested_stake_percent ?? 0) > 0 ? (
+                            <>
+                              <span className="text-base font-mono font-bold text-green-edge">${Math.round(bankrollStats.current_balance * (rec.suggested_stake_percent ?? 0) / 100)}</span>
+                              <div className="text-[10px] text-gray-600 font-mono">{(rec.suggested_stake_percent ?? 0).toFixed(1)}%</div>
+                            </>
+                          ) : (
+                            <span className="text-sm font-mono font-medium text-white">{(rec.suggested_stake_percent ?? 0).toFixed(1)}%</span>
+                          )}
                         </div>
                         <div className="bg-navy-900 rounded-xl p-3 text-center">
                           <div className="text-xs text-gray-500 font-mono mb-1">EV</div>

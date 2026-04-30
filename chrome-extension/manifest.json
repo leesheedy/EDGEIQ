@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "EdgeIQ — TAB Analyser",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI-powered betting analysis overlay for TAB.com.au racing and sports pages.",
   "permissions": [
     "activeTab",
@@ -17,7 +17,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.tab.com.au/*"],
+      "matches": ["*://*.tab.com.au/*", "https://edgeiqsite.netlify.app/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

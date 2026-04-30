@@ -257,6 +257,7 @@
   }
 
   initToggle('toggle-autoexpand', 'autoExpand', false);
+  initToggle('toggle-autoscan', 'autoScan', false);
   initToggle('toggle-sound', 'soundEnabled', false);
 
   // ── Screenshot quality slider ─────────────────────────────────────────────────

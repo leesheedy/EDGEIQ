@@ -10,6 +10,9 @@
     'Building verdict…',
   ];
 
+  const EDGEIQ_HOST = 'edgeiqsite.netlify.app';
+  const AUTO_SCAN_DELAY_MS = 4000;
+
   // Random per-session token — host element has no fingerprint-able ID or class
   const SESSION_KEY = '_' + Math.random().toString(36).slice(2, 10);
 
@@ -115,6 +118,19 @@
 .eq-footer{padding:10px 12px;border-top:1px solid #1e2a3a;background:#070c14;flex-shrink:0;display:flex;gap:8px}
 .eq-btn-again{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:#39d97c;border:1px solid rgba(57,217,124,.4);border-radius:7px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
 .eq-btn-again:hover{background:rgba(57,217,124,.08);border-color:#39d97c}
+.eq-stake-box{margin:0 12px 12px;padding:14px;background:rgba(57,217,124,.1);border:2px solid rgba(57,217,124,.45);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.eq-stake-lbl{font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#39d97c;font-family:monospace}
+.eq-stake-dollar{font-size:34px;font-weight:800;color:#39d97c;font-family:monospace;line-height:1}
+.eq-stake-sub{font-size:10px;color:#3a7a5a;font-family:monospace}
+.eq-site-idle{padding:20px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.eq-site-logo{font-size:32px;line-height:1}
+.eq-site-title{font-size:13px;font-weight:700;color:#e8eaf0}
+.eq-site-sub{font-size:11px;color:#4a5568;line-height:1.5}
+.eq-btn-open-tab{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#39d97c;color:#070c14;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%;max-width:220px;transition:background .2s}
+.eq-btn-open-tab:hover{background:#2fc46e}
+.eq-btn-scan-tab{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:#39d97c;border:1px solid rgba(57,217,124,.4);border-radius:8px;padding:8px 20px;font-size:12px;font-weight:600;cursor:pointer;width:100%;max-width:220px;transition:background .15s}
+.eq-btn-scan-tab:hover{background:rgba(57,217,124,.08)}
+.eq-autoscan-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#39d97c;font-family:monospace;padding:3px 8px;border-radius:12px;background:rgba(57,217,124,.1);border:1px solid rgba(57,217,124,.2);margin-bottom:4px}
 `;
 
   // ── State ─────────────────────────────────────────────────────────────────────
@@ -125,6 +141,7 @@
   let loadingInterval = null;
   let currentState = 'idle';
   let lastUrl = location.href;
+  let autoScanTimer = null;
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   function isTargetPage() {
@@ -135,9 +152,43 @@
     return window.innerWidth >= 1024;
   }
 
+  function isOnTabSite() {
+    return /tab\.com\.au/i.test(location.hostname);
+  }
+
+  function isOnEdgeIQSite() {
+    return location.hostname.includes(EDGEIQ_HOST) || location.hostname === 'localhost';
+  }
+
+  // Extract visible text from the page for text-based analysis
+  function scrapeRaceText() {
+    // Try main content areas first
+    const selectors = ['main', '[role="main"]', '#root', '#app', '.content', 'body'];
+    let el = null;
+    for (const s of selectors) {
+      el = document.querySelector(s);
+      if (el && (el.innerText || '').length > 200) break;
+    }
+    if (!el) el = document.body;
+    const raw = (el.innerText || el.textContent || '');
+    // Collapse excessive whitespace
+    return raw.replace(/[ \t]{3,}/g, '  ').replace(/\n{4,}/g, '\n\n').trim().slice(0, 9000);
+  }
+
+  // Fetch current bankroll balance via background proxy
+  async function fetchBankrollForDisplay(backendUrl) {
+    try {
+      const r = await sendMessage({ type: 'GET_BANKROLL', backendUrl });
+      if (r.error || !r.data) return null;
+      const bal = r.data?.data?.balance ?? r.data?.balance ?? r.data?.data ?? r.data;
+      return typeof bal === 'number' ? bal : null;
+    } catch { return null; }
+  }
+
   function updateVisibility() {
     if (!hostEl) return;
-    hostEl.style.display = isDesktop() ? 'flex' : 'none';
+    const show = isDesktop() && (isOnTabSite() || isOnEdgeIQSite());
+    hostEl.style.display = show ? 'flex' : 'none';
   }
 
   // ── Build panel inside closed Shadow DOM ──────────────────────────────────────
@@ -199,6 +250,7 @@
     document.body.appendChild(hostEl);
     showIdle();
     updateVisibility();
+    scheduleAutoScan();
   }
 
   // ── Panel state ───────────────────────────────────────────────────────────────
@@ -220,6 +272,25 @@
   function showIdle() {
     currentState = 'idle';
     stopLoadingMessages();
+
+    if (isOnEdgeIQSite()) {
+      // EdgeIQ web app — show a CTA to open TAB or scan an open TAB tab
+      panelContent.innerHTML = `
+        <div class="eq-site-idle">
+          <div class="eq-site-logo">⚡</div>
+          <p class="eq-site-title">EdgeIQ Active</p>
+          <p class="eq-site-sub">Open a race on TAB to get AI analysis, or scan an open TAB tab.</p>
+          <button class="eq-btn-open-tab">🏇 Open TAB Racing</button>
+          <button class="eq-btn-scan-tab">📸 Scan Active TAB Tab</button>
+        </div>
+      `;
+      panelContent.querySelector('.eq-btn-open-tab').addEventListener('click', () => {
+        window.open('https://www.tab.com.au/racing', '_blank');
+      });
+      panelContent.querySelector('.eq-btn-scan-tab').addEventListener('click', runScanTabTab);
+      return;
+    }
+
     const onTarget = isTargetPage();
     panelContent.innerHTML = `
       <div class="eq-idle">
@@ -274,32 +345,10 @@
 
   // ── Analysis flow ─────────────────────────────────────────────────────────────
   async function runAnalysis() {
-    if (!isTargetPage()) {
+    if (!isTargetPage() && !isOnEdgeIQSite()) {
       showError('Please navigate to a TAB.com.au racing or sports page first.');
       return;
     }
-
-    // Collapse so panel doesn't obstruct the screenshot
-    collapsePanel();
-    await delay(350);
-
-    let screenshotResult;
-    try {
-      screenshotResult = await sendMessage({ type: 'CAPTURE_SCREENSHOT' });
-    } catch (err) {
-      expandPanel();
-      showError('Screenshot failed: ' + (err.message || String(err)));
-      return;
-    }
-
-    if (screenshotResult.error) {
-      expandPanel();
-      showError('Screenshot error: ' + screenshotResult.error);
-      return;
-    }
-
-    expandPanel();
-    showLoading();
 
     let backendUrl = DEFAULT_BACKEND;
     try {
@@ -307,9 +356,103 @@
       if (stored && stored.backendUrl) backendUrl = stored.backendUrl;
     } catch (_) {}
 
-    // Route through background service worker — avoids CORS because background
-    // requests use the extension's host_permissions, not the page's origin.
+    expandPanel();
+    showLoading();
+
     let responseData;
+
+    // Try text extraction first (faster, no screenshot tokens)
+    if (isOnTabSite() && isTargetPage()) {
+      try {
+        const pageText = scrapeRaceText();
+        if (pageText.length > 300) {
+          const textResult = await sendMessage({
+            type: 'ANALYSE_TEXT',
+            backendUrl,
+            pageText,
+            pageUrl: location.href,
+          });
+          if (textResult.data && !textResult.error) {
+            responseData = textResult.data;
+          }
+        }
+      } catch (_) { /* fall through to screenshot */ }
+    }
+
+    // Fallback: screenshot-based analysis
+    if (!responseData) {
+      collapsePanel();
+      await delay(350);
+
+      let screenshotResult;
+      try {
+        screenshotResult = await sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+      } catch (err) {
+        expandPanel();
+        showError('Screenshot failed: ' + (err.message || String(err)));
+        return;
+      }
+
+      if (screenshotResult.error) {
+        expandPanel();
+        showError('Screenshot error: ' + screenshotResult.error);
+        return;
+      }
+
+      expandPanel();
+      showLoading();
+
+      try {
+        const analysisResult = await sendMessage({
+          type: 'ANALYSE_PAGE',
+          backendUrl,
+          image: screenshotResult.dataUrl,
+          mediaType: 'image/jpeg',
+        });
+        if (analysisResult.error) throw new Error(analysisResult.error);
+        responseData = analysisResult.data;
+      } catch (err) {
+        stopLoadingMessages();
+        showError('Analysis failed: ' + (err.message || String(err)));
+        return;
+      }
+    }
+
+    stopLoadingMessages();
+
+    // Fetch bankroll for dollar stake display (non-blocking)
+    const bankrollBalance = await fetchBankrollForDisplay(backendUrl);
+
+    try {
+      renderResults(responseData, bankrollBalance);
+    } catch (err) {
+      showError('Display error: ' + err.message);
+    }
+  }
+
+  // ── Scan an open TAB tab (for EdgeIQ site) ────────────────────────────────────
+  async function runScanTabTab() {
+    let backendUrl = DEFAULT_BACKEND;
+    try {
+      const stored = await storageGet('backendUrl');
+      if (stored && stored.backendUrl) backendUrl = stored.backendUrl;
+    } catch (_) {}
+
+    showLoading();
+
+    let screenshotResult;
+    try {
+      screenshotResult = await sendMessage({ type: 'FIND_AND_CAPTURE_TAB' });
+    } catch (err) {
+      showError('Capture failed: ' + (err.message || String(err)));
+      return;
+    }
+
+    if (screenshotResult.error) {
+      showError(screenshotResult.error);
+      return;
+    }
+
     try {
       const analysisResult = await sendMessage({
         type: 'ANALYSE_PAGE',
@@ -317,25 +460,19 @@
         image: screenshotResult.dataUrl,
         mediaType: 'image/jpeg',
       });
-
       if (analysisResult.error) throw new Error(analysisResult.error);
-      responseData = analysisResult.data;
+
+      stopLoadingMessages();
+      const bankrollBalance = await fetchBankrollForDisplay(backendUrl);
+      renderResults(analysisResult.data, bankrollBalance);
     } catch (err) {
       stopLoadingMessages();
       showError('Analysis failed: ' + (err.message || String(err)));
-      return;
-    }
-
-    stopLoadingMessages();
-    try {
-      renderResults(responseData);
-    } catch (err) {
-      showError('Display error: ' + err.message);
     }
   }
 
   // ── Results ───────────────────────────────────────────────────────────────────
-  function renderResults(responseData) {
+  function renderResults(responseData, bankrollBalance) {
     currentState = 'results';
 
     const data = responseData.data || responseData;
@@ -380,6 +517,19 @@
           <div class="eq-stat-cell"><div class="eq-stat-value">${escHtml(stake)}</div><div class="eq-stat-label">Stake</div></div>
         `;
         container.appendChild(grid);
+
+        // Dollar stake box
+        if (bankrollBalance && rec.suggested_stake_percent != null && rec.suggested_stake_percent > 0) {
+          const dollarStake = Math.round(bankrollBalance * rec.suggested_stake_percent / 100);
+          const stakeBox = document.createElement('div');
+          stakeBox.className = 'eq-stake-box';
+          stakeBox.innerHTML = `
+            <span class="eq-stake-lbl">Recommended Stake</span>
+            <span class="eq-stake-dollar">$${dollarStake}</span>
+            <span class="eq-stake-sub">${rec.suggested_stake_percent}% × $${Math.round(bankrollBalance).toLocaleString()} bankroll</span>
+          `;
+          container.appendChild(stakeBox);
+        }
       }
 
       if (rec.key_stat) {
@@ -523,6 +673,19 @@
     panelContent.scrollTop = 0;
   }
 
+  // ── Auto-scan ─────────────────────────────────────────────────────────────────
+  function scheduleAutoScan() {
+    clearTimeout(autoScanTimer);
+    if (!isTargetPage()) return;
+    storageGet('autoScan').then((r) => {
+      if (r && r.autoScan === true) {
+        autoScanTimer = setTimeout(() => {
+          if (currentState === 'idle') runAnalysis();
+        }, AUTO_SCAN_DELAY_MS);
+      }
+    }).catch(() => {});
+  }
+
   // ── SPA observer ──────────────────────────────────────────────────────────────
   function attachSpaObserver() {
     const observer = new MutationObserver(() => {
@@ -535,6 +698,7 @@
   function onUrlChange() {
     updateVisibility();
     if (currentState !== 'loading') showIdle();
+    scheduleAutoScan();
   }
 
   function attachResizeListener() {
