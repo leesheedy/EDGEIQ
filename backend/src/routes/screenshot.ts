@@ -244,9 +244,10 @@ async function runTwoStageAnalysis(
 
   // Normalize: Claude sometimes returns flat { "recommendation": "BET", "bet_type": ... }
   // instead of the requested nested { "recommendation": { "recommendation": "BET", ... } }
-  const rec = typeof research.recommendation === 'string' || !research.recommendation?.recommendation
-    ? research        // flat — the research object itself is the recommendation
-    : research.recommendation;
+  const inner = research.recommendation as Record<string, unknown> | string;
+  const rec = typeof inner === 'string' || !(inner as Record<string, unknown>)?.recommendation
+    ? research
+    : inner;
 
   return { ...extracted, recommendation: rec };
 }
