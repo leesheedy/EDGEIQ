@@ -168,7 +168,6 @@ async function runTwoStageAnalysis(
   perfContext: string,
 ) {
   // Stage 1: Vision extraction — pull all structured data from the screenshot(s)
-  // Assistant prefill forces JSON output with no preamble ("Sure! Here is..." etc.)
   const extractMsg = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 3000,
@@ -186,11 +185,10 @@ async function runTwoStageAnalysis(
           },
         ],
       },
-      { role: 'assistant', content: '{' },
     ],
   });
 
-  const rawExtract = '{' + getTextContent(extractMsg);
+  const rawExtract = getTextContent(extractMsg);
   console.log('[Screenshot] Stage1 raw:', rawExtract.slice(0, 300));
 
   let extracted = extractJson(rawExtract);
@@ -210,10 +208,9 @@ async function runTwoStageAnalysis(
             { type: 'text', text: 'Return JSON with: sport, event_name, venue, runners (name, odds), track_condition, distance, race_number. No other text.' },
           ],
         },
-        { role: 'assistant', content: '{' },
       ],
     });
-    const rawRetry = '{' + getTextContent(retryMsg);
+    const rawRetry = getTextContent(retryMsg);
     console.log('[Screenshot] Stage1 retry raw:', rawRetry.slice(0, 300));
     extracted = extractJson(rawRetry);
   }
@@ -230,11 +227,10 @@ async function runTwoStageAnalysis(
     system: SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: [{ type: 'text', text: buildResearchPrompt(extracted, perfContext) }] },
-      { role: 'assistant', content: '{' },
     ],
   });
 
-  const rawResearch = '{' + getTextContent(researchMsg);
+  const rawResearch = getTextContent(researchMsg);
   console.log('[Screenshot] Stage2 raw:', rawResearch.slice(0, 300));
 
   const research = extractJson(rawResearch);
