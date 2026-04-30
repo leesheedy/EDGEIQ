@@ -9,6 +9,15 @@ const SYSTEM_PROMPT = `You are EdgeIQ, an expert Australian sports betting and h
 
 const EXTRACT_PROMPT = `Analyze this TAB betting screenshot carefully. Extract ALL visible information including any account balance displayed.
 
+BET TYPE GUIDANCE:
+- "win": single runner to win outright — best when 1 clear standout with good odds
+- "quinella": top 2 runners in any order — recommend when 2 runners look strong but unsure of exact order; LOWER risk than exacta
+- "exacta": first 2 runners in exact order — only when very confident of order
+- "trifecta": first 3 runners in exact order — only for high confidence multi-runner races
+- "each_way": win + place — good for runners 6.00+ odds with 60-70% confidence
+- "place": safer bet when confidence is lower but runner looks like top 3
+For selection field on multi-runner bets (quinella/exacta/trifecta) include all runners e.g. "Horse A / Horse B"
+
 Return ONLY this exact JSON structure (no other text):
 {
   "tab_balance": 1250.50 or null (IMPORTANT: if you can see a TAB account balance, wallet balance, or available funds amount anywhere on screen, extract the exact dollar value as a number — look for labels like "Balance", "Available", "Funds", "Wallet"),
@@ -40,7 +49,7 @@ Return ONLY this exact JSON structure (no other text):
   "recommendation": {
     "recommendation": "BET" | "WATCH" | "SKIP",
     "bet_type": "win" | "place" | "each_way" | "head_to_head" | "line" | "total" | "quinella" | "exacta" | "trifecta",
-    "selection": "Exact selection name",
+    "selection": "Exact selection name (for quinella/exacta include both runners e.g. 'Winx / Verry Elleegant')",
     "confidence_score": 72,
     "expected_value": 0.08,
     "suggested_stake_percent": 2.5,
@@ -78,10 +87,13 @@ router.post('/analyse-multi', async (req, res) => {
       };
     });
 
+    const perfContext = await db.getScanDraftsPerformanceSummary().catch(() => '');
+    const systemMsg = perfContext ? `${SYSTEM_PROMPT}\n\n${perfContext}` : SYSTEM_PROMPT;
+
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5',
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: systemMsg,
       messages: [
         {
           role: 'user',

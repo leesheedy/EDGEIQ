@@ -267,7 +267,7 @@ export const db = {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) { console.error('getScreenshotAnalyses error:', error); return []; }
+    if (error) throw new Error(error.message);
     return data || [];
   },
 
@@ -284,6 +284,48 @@ export const db = {
 
   async deleteScreenshotAnalysis(id: string): Promise<void> {
     await supabase.from('screenshot_analyses').delete().eq('id', id);
+  },
+
+  async getScanDraftsPerformanceSummary(): Promise<string> {
+    const { data, error } = await supabase
+      .from('screenshot_analyses')
+      .select('sport, recommendation, outcome, profit_loss, bet_type, confidence_score')
+      .not('outcome', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error || !data || data.length === 0) return '';
+
+    const resolved = data as Array<{
+      sport?: string; recommendation?: string; outcome?: string;
+      profit_loss?: number; bet_type?: string; confidence_score?: number;
+    }>;
+
+    const won = resolved.filter(d => d.outcome === 'WON').length;
+    const lost = resolved.filter(d => d.outcome === 'LOST').length;
+    const total = won + lost;
+    const pnl = resolved.reduce((s, d) => s + (d.profit_loss || 0), 0);
+    const winRate = total > 0 ? ((won / total) * 100).toFixed(0) : '0';
+
+    const byType: Record<string, { w: number; l: number }> = {};
+    for (const d of resolved) {
+      if (!d.bet_type) continue;
+      if (!byType[d.bet_type]) byType[d.bet_type] = { w: 0, l: 0 };
+      if (d.outcome === 'WON') byType[d.bet_type].w++;
+      if (d.outcome === 'LOST') byType[d.bet_type].l++;
+    }
+    const typeStr = Object.entries(byType).map(([k, v]) => `${k}:${v.w}W/${v.l}L`).join(', ');
+
+    const bySport: Record<string, { w: number; l: number }> = {};
+    for (const d of resolved) {
+      if (!d.sport) continue;
+      if (!bySport[d.sport]) bySport[d.sport] = { w: 0, l: 0 };
+      if (d.outcome === 'WON') bySport[d.sport].w++;
+      if (d.outcome === 'LOST') bySport[d.sport].l++;
+    }
+    const sportStr = Object.entries(bySport).map(([k, v]) => `${k}:${v.w}W/${v.l}L`).join(', ');
+
+    return `HISTORICAL SCAN PERFORMANCE (last ${total} resolved bets): Win rate ${winRate}% (${won}W/${lost}L). Net P&L: $${pnl.toFixed(2)}. By bet type: ${typeStr || 'none'}. By sport: ${sportStr || 'none'}. Use this data to calibrate confidence scores — lower confidence for historically weak sport/type combos, higher for strong ones.`;
   },
 
   async getRecentPerformanceSummary(): Promise<string> {

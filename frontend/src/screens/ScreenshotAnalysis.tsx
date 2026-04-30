@@ -47,7 +47,10 @@ interface ScanDraft {
   created_at: string;
   sport?: string;
   event_name: string;
+  event_time?: string;
+  venue?: string;
   selection?: string;
+  bet_type?: string;
   recommendation?: string;
   odds?: number;
   confidence_score?: number;
@@ -58,6 +61,18 @@ interface ScanDraft {
   placed_stake?: number;
   outcome?: 'WON' | 'LOST' | 'VOID';
   profit_loss?: number;
+}
+
+interface BetSlipData {
+  event_name: string;
+  event_time?: string;
+  venue?: string;
+  selection?: string;
+  bet_type?: string;
+  odds?: number;
+  suggested_stake_percent?: number;
+  sport?: string;
+  race_number?: number;
 }
 
 // ── Outcome modal ──────────────────────────────────────────────────────────────
@@ -164,20 +179,116 @@ function PlacedModal({
   );
 }
 
+// ── Bet Slip Modal ─────────────────────────────────────────────────────────────
+function BetSlipModal({ data, onClose }: { data: BetSlipData; onClose: () => void }) {
+  const { bankrollStats } = useAppStore();
+  const suggestedStake = bankrollStats && data.suggested_stake_percent
+    ? (bankrollStats.current_balance * data.suggested_stake_percent / 100)
+    : null;
+
+  const betTypeDisplay = data.bet_type
+    ? betTypeLabel(data.bet_type as Parameters<typeof betTypeLabel>[0])
+    : null;
+
+  const betTypeColor =
+    data.bet_type === 'quinella' ? 'text-purple-400 bg-purple-400/10' :
+    data.bet_type === 'exacta' ? 'text-blue-400 bg-blue-400/10' :
+    data.bet_type === 'trifecta' ? 'text-amber-400 bg-amber-400/10' :
+    data.bet_type === 'each_way' ? 'text-cyan-400 bg-cyan-400/10' :
+    'text-green-edge bg-green-edge/10';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center p-4 bg-black/70" onClick={onClose}>
+      <div className="w-full max-w-sm bg-navy-800 border border-navy-700 rounded-2xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-green-edge/15 flex items-center justify-center">
+            <ExternalLink size={15} className="text-green-edge" />
+          </div>
+          <div>
+            <h3 className="font-display font-bold text-white text-sm">Bet Slip</h3>
+            <p className="text-xs text-gray-500 font-mono">Take this to TAB</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 mb-5">
+          <div className="bg-navy-900 rounded-xl p-3">
+            <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-0.5">Event</p>
+            <p className="text-white font-medium text-sm">{data.event_name}</p>
+            {(data.event_time || data.venue) && (
+              <p className="text-xs text-gray-500 font-mono mt-0.5">
+                {[data.venue, data.event_time].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+
+          {data.selection && (
+            <div className="bg-navy-900 rounded-xl p-3">
+              <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-0.5">Selection</p>
+              <p className="text-white font-display font-bold text-xl leading-tight">{data.selection}</p>
+              {betTypeDisplay && (
+                <span className={clsx('inline-block mt-1 text-xs font-mono font-bold px-2 py-0.5 rounded-full', betTypeColor)}>
+                  {betTypeDisplay}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            {data.odds && (
+              <div className="bg-navy-900 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-gray-500 font-mono mb-1">ODDS</p>
+                <p className="text-green-edge font-display font-bold text-2xl">${data.odds.toFixed(2)}</p>
+              </div>
+            )}
+            {suggestedStake && (
+              <div className="bg-navy-900 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-gray-500 font-mono mb-1">STAKE</p>
+                <p className="text-white font-display font-bold text-2xl">${suggestedStake.toFixed(2)}</p>
+                <p className="text-[10px] text-gray-600 font-mono">{data.suggested_stake_percent?.toFixed(1)}% bankroll</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-3 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all">
+            Close
+          </button>
+          <a
+            href="https://www.tab.com.au"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-sm hover:bg-green-dim transition-all"
+          >
+            <ExternalLink size={16} />Open TAB
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── History tab ────────────────────────────────────────────────────────────────
 function ScanHistory() {
   const [drafts, setDrafts] = useState<ScanDraft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeDraft, setActiveDraft] = useState<ScanDraft | null>(null);
+  const [betSlipDraft, setBetSlipDraft] = useState<ScanDraft | null>(null);
   const { addToast } = useAppStore();
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await scanDraftsApi.list();
       setDrafts(data as ScanDraft[]);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load history');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -203,6 +314,33 @@ function ScanHistory() {
       <div className="flex items-center justify-center py-16 text-gray-500">
         <Loader2 size={20} className="animate-spin mr-2" />
         <span className="font-mono text-sm">Loading...</span>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    const isMissingTable = loadError.toLowerCase().includes('does not exist') || loadError.toLowerCase().includes('screenshot_analyses');
+    return (
+      <div className="flex flex-col gap-3 py-4">
+        <div className="bg-red-edge/10 border border-red-edge/30 rounded-2xl p-4">
+          <p className="text-red-400 font-mono text-sm font-semibold mb-1">History unavailable</p>
+          <p className="text-gray-400 font-mono text-xs">{loadError}</p>
+        </div>
+        {isMissingTable && (
+          <div className="bg-amber-edge/5 border border-amber-edge/20 rounded-2xl p-4">
+            <p className="text-amber-edge font-mono text-xs font-semibold mb-2">Setup required</p>
+            <p className="text-gray-400 font-mono text-xs mb-2">
+              The scan history table hasn't been created yet. Run this SQL in your{' '}
+              <span className="text-white">Supabase SQL editor</span>:
+            </p>
+            <div className="bg-navy-900 rounded-xl p-3 text-[10px] font-mono text-gray-400 break-all leading-relaxed">
+              {'CREATE TABLE IF NOT EXISTS screenshot_analyses (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), created_at timestamptz DEFAULT now(), sport text, event_name text, event_time text, venue text, selection text, bet_type text, recommendation text, odds numeric, confidence_score numeric, expected_value numeric, suggested_stake_percent numeric, reasoning text, key_stat text, raw_result jsonb, status text DEFAULT \'draft\', placed_stake numeric, outcome text, profit_loss numeric);'}
+            </div>
+          </div>
+        )}
+        <button onClick={load} className="w-full py-2.5 bg-navy-800 border border-navy-700 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all">
+          Retry
+        </button>
       </div>
     );
   }
@@ -255,6 +393,7 @@ function ScanHistory() {
           onMark={() => setActiveDraft(draft)}
           onSkip={() => skip(draft.id)}
           onDelete={() => remove(draft.id)}
+          onOpenBet={() => setBetSlipDraft(draft)}
         />
       ))}
 
@@ -265,17 +404,34 @@ function ScanHistory() {
           onSaved={onOutcomeSaved}
         />
       )}
+
+      {betSlipDraft && (
+        <BetSlipModal
+          data={{
+            event_name: betSlipDraft.event_name,
+            event_time: betSlipDraft.event_time,
+            venue: betSlipDraft.venue,
+            selection: betSlipDraft.selection,
+            bet_type: betSlipDraft.bet_type,
+            odds: betSlipDraft.odds,
+            suggested_stake_percent: betSlipDraft.suggested_stake_percent,
+            sport: betSlipDraft.sport,
+          }}
+          onClose={() => setBetSlipDraft(null)}
+        />
+      )}
     </div>
   );
 }
 
 function DraftCard({
-  draft, onMark, onSkip, onDelete,
+  draft, onMark, onSkip, onDelete, onOpenBet,
 }: {
   draft: ScanDraft;
   onMark: () => void;
   onSkip: () => void;
   onDelete: () => void;
+  onOpenBet?: () => void;
 }) {
   const recColor =
     draft.recommendation === 'BET' ? 'text-green-edge'
@@ -301,6 +457,17 @@ function DraftCard({
             <p className={clsx('text-sm font-mono font-bold', recColor)}>
               {draft.recommendation} · {draft.selection}
             </p>
+          )}
+          {draft.bet_type && (
+            <span className={clsx('inline-block mt-0.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full',
+              draft.bet_type === 'quinella' ? 'text-purple-400 bg-purple-400/10' :
+              draft.bet_type === 'exacta' ? 'text-blue-400 bg-blue-400/10' :
+              draft.bet_type === 'trifecta' ? 'text-amber-400 bg-amber-400/10' :
+              draft.bet_type === 'each_way' ? 'text-cyan-400 bg-cyan-400/10' :
+              'text-gray-500 bg-navy-900'
+            )}>
+              {betTypeLabel(draft.bet_type as Parameters<typeof betTypeLabel>[0])}
+            </span>
           )}
           <div className="flex items-center gap-3 mt-1">
             {draft.odds && <span className="text-xs font-mono text-gray-400">${draft.odds.toFixed(2)}</span>}
@@ -331,27 +498,36 @@ function DraftCard({
         </div>
       </div>
 
-      {/* Action buttons — only show if no outcome yet */}
-      {!draft.outcome && draft.status !== 'skipped' && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-navy-700">
+      {/* Action buttons */}
+      <div className="flex gap-1.5 mt-3 pt-3 border-t border-navy-700">
+        {onOpenBet && (
           <button
-            onClick={onMark}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-edge/15 border border-green-edge/30 text-green-edge rounded-xl font-mono text-xs hover:bg-green-edge/20 transition-all"
+            onClick={onOpenBet}
+            className="flex items-center justify-center gap-1 py-2 px-2.5 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-xs hover:text-green-edge hover:border-green-edge/30 transition-all"
+            title="Open bet slip"
           >
-            <TrendingUp size={13} />
-            I placed this
+            <ExternalLink size={12} />
           </button>
-          <button
-            onClick={onSkip}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-xs hover:text-white transition-all"
-          >
-            <TrendingDown size={13} />
-            Skipped
-          </button>
-        </div>
-      )}
-      {draft.status === 'placed' && !draft.outcome && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-navy-700">
+        )}
+        {!draft.outcome && draft.status !== 'skipped' && (
+          <>
+            <button
+              onClick={onMark}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-edge/15 border border-green-edge/30 text-green-edge rounded-xl font-mono text-xs hover:bg-green-edge/20 transition-all"
+            >
+              <TrendingUp size={13} />
+              Placed
+            </button>
+            <button
+              onClick={onSkip}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-xs hover:text-white transition-all"
+            >
+              <TrendingDown size={13} />
+              Skipped
+            </button>
+          </>
+        )}
+        {draft.status === 'placed' && !draft.outcome && (
           <button
             onClick={onMark}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-edge/15 border border-amber-edge/30 text-amber-edge rounded-xl font-mono text-xs hover:bg-amber-edge/20 transition-all"
@@ -359,15 +535,15 @@ function DraftCard({
             <Clock size={13} />
             Set outcome
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export function ScreenshotAnalysis() {
-  const { addToast, loadBankroll } = useAppStore();
+  const { addToast, loadBankroll, bankrollStats } = useAppStore();
   const [tab, setTab] = useState<'scan' | 'history'>('scan');
   const [dragging, setDragging] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -376,6 +552,7 @@ export function ScreenshotAnalysis() {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [placedStatus, setPlacedStatus] = useState<'draft' | 'placed' | 'skipped' | null>(null);
   const [showOutcomeModal, setShowOutcomeModal] = useState(false);
+  const [showBetSlip, setShowBetSlip] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -485,6 +662,18 @@ export function ScreenshotAnalysis() {
 
   const rec = result?.recommendation;
   const bestOdds = result?.runners?.[0]?.odds || result?.home_odds || result?.away_odds || 2.0;
+
+  const betSlipData: BetSlipData | null = result && rec ? {
+    event_name: result.event_name,
+    event_time: result.event_time,
+    venue: result.venue,
+    selection: rec.selection,
+    bet_type: rec.bet_type,
+    odds: bestOdds,
+    suggested_stake_percent: rec.suggested_stake_percent,
+    sport: result.sport,
+    race_number: result.race_number,
+  } : null;
 
   const draftForModal: ScanDraft | null = savedId && rec ? {
     id: savedId,
@@ -735,14 +924,12 @@ export function ScreenshotAnalysis() {
 
                 {/* Placed / Skip actions */}
                 <div className="p-4 pt-2 flex flex-col gap-2">
-                  <a
-                    href="https://www.tab.com.au"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => setShowBetSlip(true)}
                     className="flex items-center justify-center gap-2 w-full py-3.5 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-base hover:bg-green-dim transition-all active:scale-95"
                   >
-                    <ExternalLink size={18} />Open TAB to Place Bet
-                  </a>
+                    <ExternalLink size={18} />Open Bet in TAB
+                  </button>
 
                   {placedStatus === 'draft' && (
                     <div className="flex gap-2">
@@ -782,6 +969,13 @@ export function ScreenshotAnalysis() {
               draft={draftForModal}
               onClose={() => setShowOutcomeModal(false)}
               onSaved={() => { setShowOutcomeModal(false); setPlacedStatus('placed'); }}
+            />
+          )}
+
+          {showBetSlip && betSlipData && (
+            <BetSlipModal
+              data={betSlipData}
+              onClose={() => setShowBetSlip(false)}
             />
           )}
         </>

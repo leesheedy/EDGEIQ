@@ -14,8 +14,12 @@ router.post('/', async (req, res) => {
 });
 
 router.get('/', async (_req, res) => {
-  const analyses = await db.getScreenshotAnalyses(100);
-  res.json({ data: analyses });
+  try {
+    const analyses = await db.getScreenshotAnalyses(100);
+    res.json({ data: analyses });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to load history' });
+  }
 });
 
 router.patch('/:id', async (req, res) => {
