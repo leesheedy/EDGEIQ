@@ -28,22 +28,38 @@ Value grading:
 
 Return ONLY valid JSON. No markdown, no other text.`;
 
-const EXTRACT_PROMPT = `Extract all visible information from this TAB betting screenshot precisely.
+const EXTRACT_PROMPT = `You are reading a screenshot from TAB.com.au. Extract every piece of visible information and return it as JSON.
 
-Return ONLY this JSON structure:
+CRITICAL: Always return valid JSON even if the image is unclear — use null for anything you cannot read.
+
+Return ONLY this exact JSON (no markdown, no explanation, start with { and end with }):
 {
-  "tab_balance": number or null,
-  "sport": "horse_racing_thoroughbred" | "horse_racing_harness" | "horse_racing_greyhound" | "nrl" | "afl" | "soccer" | "nba" | "cricket" | "tennis" | "other",
-  "event_name": "event name",
-  "event_time": "time or null",
-  "venue": "venue or null",
-  "market_type": "win" | "each_way" | "place" | "head_to_head" | "line" | "total" | "same_game_multi" | "other",
-  "track_condition": "Good/Heavy/Soft/Firm or null",
-  "distance": number or null,
-  "race_number": number or null,
-  "runners": [{ "name": "string", "barrier": number|null, "jockey": "string|null", "trainer": "string|null", "weight": number|null, "odds": number, "place_odds": number|null, "form": "string|null" }],
-  "home_team": null, "away_team": null, "home_odds": null, "away_odds": null, "draw_odds": null
-}`;
+  "tab_balance": null,
+  "sport": "horse_racing_thoroughbred",
+  "event_name": "Race name or event",
+  "event_time": "time string or null",
+  "venue": "track/venue name or null",
+  "market_type": "win",
+  "track_condition": "Good or null",
+  "distance": 1200,
+  "race_number": 1,
+  "runners": [
+    { "name": "Runner Name", "barrier": 1, "jockey": "J Smith", "trainer": "T Jones", "weight": 56.5, "odds": 3.50, "place_odds": 1.80, "form": "1-2-3" }
+  ],
+  "home_team": null,
+  "away_team": null,
+  "home_odds": null,
+  "away_odds": null,
+  "draw_odds": null
+}
+
+Rules:
+- sport must be one of: horse_racing_thoroughbred, horse_racing_harness, horse_racing_greyhound, nrl, afl, soccer, nba, cricket, tennis, other
+- market_type must be one of: win, each_way, place, head_to_head, line, total, same_game_multi, other
+- Extract ALL runners visible — do not skip any
+- odds must be a decimal number (e.g. 3.50), not null — estimate if unclear
+- For greyhounds: barrier = box number, jockey = null, trainer = box trainer
+- For sports markets: fill home_team, away_team, home_odds, away_odds instead of runners`;
 
 function buildResearchPrompt(extracted: object, perfContext: string): string {
   return `You are a sharp professional Australian bettor. Analyze this race data deeply:
@@ -108,10 +124,34 @@ function buildImageBlocks(images: Array<{ image: string; mediaType?: string }>):
   }));
 }
 
-function extractJson(text: string) {
-  const match = text.match(/\{[\s\S]*\}/);
+function extractJson(text: string): Record<string, unknown> | null {
+  // Strip markdown code fences that Claude sometimes wraps around JSON
+  const clean = text
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  const match = clean.match(/\{[\s\S]*\}/);
   if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
+  const jsonStr = match[0];
+
+  // Try 1: direct parse
+  try { return JSON.parse(jsonStr); } catch { /* continue */ }
+
+  // Try 2: repair trailing commas before } or ]
+  try {
+    const repaired = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(repaired);
+  } catch { /* continue */ }
+
+  // Try 3: find the last valid closing brace (handles truncated JSON)
+  for (let i = jsonStr.length - 1; i >= 0; i--) {
+    if (jsonStr[i] === '}') {
+      try { return JSON.parse(jsonStr.slice(0, i + 1)); } catch { /* try shorter */ }
+    }
+  }
+
+  return null;
 }
 
 function getTextContent(msg: Anthropic.Message): string {
@@ -130,8 +170,8 @@ async function runTwoStageAnalysis(
   // Stage 1: Vision extraction — pull all structured data from the screenshot(s)
   const extractMsg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1500,
-    system: SYSTEM_PROMPT,
+    max_tokens: 3000,
+    system: 'You extract structured data from betting screenshots. Return ONLY valid JSON. No markdown, no explanation.',
     messages: [{
       role: 'user',
       content: [
@@ -139,22 +179,26 @@ async function runTwoStageAnalysis(
         {
           type: 'text',
           text: imageCount > 1
-            ? `These are ${imageCount} screenshots of the same TAB page. Extract all visible data.\n\n${EXTRACT_PROMPT}`
+            ? `These are ${imageCount} screenshots of the same TAB.com.au page. Combine all visible information.\n\n${EXTRACT_PROMPT}`
             : EXTRACT_PROMPT,
         },
       ],
     }],
   });
 
-  const extracted = extractJson(getTextContent(extractMsg));
+  const rawExtract = getTextContent(extractMsg);
+  console.log('[Screenshot] Stage1 raw:', rawExtract.slice(0, 300));
+
+  const extracted = extractJson(rawExtract);
   if (!extracted) {
-    throw new Error('Could not read betting data from screenshots — try clearer images');
+    const preview = rawExtract.slice(0, 200).replace(/\n/g, ' ');
+    throw new Error(`Could not parse screenshot data — Claude responded: "${preview}". Try a clearer screenshot showing runners and odds.`);
   }
 
   // Stage 2: Deep research + recommendation (text only, no image tokens needed)
   const researchMsg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 3500,
+    max_tokens: 4000,
     system: SYSTEM_PROMPT,
     messages: [{
       role: 'user',
@@ -162,9 +206,12 @@ async function runTwoStageAnalysis(
     }],
   });
 
-  const research = extractJson(getTextContent(researchMsg));
+  const rawResearch = getTextContent(researchMsg);
+  console.log('[Screenshot] Stage2 raw:', rawResearch.slice(0, 300));
+
+  const research = extractJson(rawResearch);
   if (!research?.recommendation) {
-    throw new Error('Analysis incomplete — please try again');
+    throw new Error('Analysis did not return a recommendation — please try again');
   }
 
   // Normalize: Claude sometimes returns flat { "recommendation": "BET", "bet_type": ... }
