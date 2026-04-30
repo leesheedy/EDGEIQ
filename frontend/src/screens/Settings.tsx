@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, TestTube, Database, Lock, RotateCcw } from 'lucide-react';
+import { Save, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw, TestTube, Database, Lock, RotateCcw, Download, Copy, Puzzle } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { settingsApi, scraperApi } from '../lib/api';
 import { clsx } from '../lib/utils';
@@ -59,6 +59,8 @@ export function Settings() {
   const [smsTestResult, setSmsTestResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [testingSmS, setTestingSmS] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
+  const [showExtConfig, setShowExtConfig] = useState(false);
 
   useEffect(() => {
     scraperApi.errors().then(setScraperErrors).catch(() => {});
@@ -329,6 +331,75 @@ export function Settings() {
         <Card title="Application">
           <Toggle label="Sound notifications" value={form.sound_enabled === 'true'} onChange={(v) => set('sound_enabled', v ? 'true' : 'false')} />
           <Toggle label="Learning system" description="Inject past performance into AI prompts" value={form.learning_enabled === 'true'} onChange={(v) => set('learning_enabled', v ? 'true' : 'false')} />
+        </Card>
+
+        {/* Chrome Extension */}
+        <Card title="Chrome Extension">
+          <p className="text-xs text-gray-600 font-mono -mt-2 mb-1">
+            Overlay panel for TAB.com.au — desktop only. Invisible to TAB's detection scripts.
+          </p>
+
+          <div className="flex gap-2">
+            <a
+              href="/edgeiq-extension.zip"
+              download="edgeiq-extension.zip"
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-edge text-navy-950 rounded-xl font-display font-semibold text-sm hover:bg-green-dim transition-all"
+            >
+              <Download size={15} />Download Extension
+            </a>
+            <button
+              onClick={() => setShowExtConfig(v => !v)}
+              className={clsx(
+                'flex items-center gap-2 px-4 py-3 rounded-xl font-mono text-sm border transition-all',
+                showExtConfig
+                  ? 'bg-navy-700 border-navy-500 text-white'
+                  : 'bg-navy-900 border-navy-600 text-gray-400 hover:text-white'
+              )}
+            >
+              <Puzzle size={15} />Config
+            </button>
+          </div>
+
+          {showExtConfig && (
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="bg-navy-900 rounded-xl p-4">
+                <p className="text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider">Backend URL</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs font-mono text-green-edge break-all bg-navy-950 rounded-lg px-3 py-2">
+                    https://edgeiq-production-6e47.up.railway.app
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://edgeiq-production-6e47.up.railway.app');
+                      setUrlCopied(true);
+                      setTimeout(() => setUrlCopied(false), 2000);
+                    }}
+                    className="shrink-0 p-2 rounded-lg bg-navy-800 border border-navy-600 text-gray-400 hover:text-green-edge hover:border-green-edge/30 transition-all"
+                  >
+                    {urlCopied ? <CheckCircle size={14} className="text-green-edge" /> : <Copy size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-navy-900 rounded-xl p-4 flex flex-col gap-2">
+                <p className="text-xs font-mono text-gray-500 uppercase tracking-wider">Setup Steps</p>
+                {[
+                  'Download the extension zip above',
+                  'Open Chrome → chrome://extensions',
+                  'Enable "Developer mode" (top-right toggle)',
+                  'Click "Load unpacked" → select the unzipped folder',
+                  'Pin EdgeIQ in your toolbar — click ⚡ to configure the URL',
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-green-edge/15 text-green-edge text-[10px] font-mono font-bold flex items-center justify-center mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono leading-relaxed">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Session */}
