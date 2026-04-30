@@ -30,7 +30,7 @@ interface ScreenshotResult {
   home_team?: string; away_team?: string;
   home_odds?: number; away_odds?: number; draw_odds?: number;
   recommendation: {
-    recommendation: 'BET' | 'WATCH' | 'SKIP';
+    recommendation: 'BET' | 'WATCH' | 'PASS' | 'SKIP';
     bet_type: BetType;
     selection: string;
     confidence_score: number;
@@ -39,6 +39,16 @@ interface ScreenshotResult {
     reasoning: string;
     risk_flags: string[];
     key_stat?: string;
+    professional_verdict?: string;
+    pass_reason?: string;
+    wait_for?: string;
+    probability_table?: Array<{
+      runner: string;
+      market_odds: number;
+      implied_prob: number;
+      true_prob: number;
+      value_rating: 'good' | 'fair' | 'poor';
+    }>;
   };
 }
 
@@ -320,21 +330,33 @@ function ScanHistory() {
 
   if (loadError) {
     const isMissingTable = loadError.toLowerCase().includes('does not exist') || loadError.toLowerCase().includes('screenshot_analyses');
+    const isRlsError = loadError.toLowerCase().includes('permission denied') || loadError.toLowerCase().includes('row-level security') || loadError.toLowerCase().includes('rls');
     return (
       <div className="flex flex-col gap-3 py-4">
         <div className="bg-red-edge/10 border border-red-edge/30 rounded-2xl p-4">
           <p className="text-red-400 font-mono text-sm font-semibold mb-1">History unavailable</p>
           <p className="text-gray-400 font-mono text-xs">{loadError}</p>
         </div>
-        {isMissingTable && (
+        {(isMissingTable || isRlsError) && (
           <div className="bg-amber-edge/5 border border-amber-edge/20 rounded-2xl p-4">
-            <p className="text-amber-edge font-mono text-xs font-semibold mb-2">Setup required</p>
+            <p className="text-amber-edge font-mono text-xs font-semibold mb-2">
+              {isRlsError ? 'Permission issue — run this in Supabase SQL editor' : 'Setup required — run this in Supabase SQL editor'}
+            </p>
+            {isMissingTable && !isRlsError && (
+              <p className="text-gray-400 font-mono text-xs mb-2">
+                Step 1 — Create the table:
+              </p>
+            )}
+            {isMissingTable && (
+              <div className="bg-navy-900 rounded-xl p-3 text-[10px] font-mono text-gray-400 break-all leading-relaxed mb-2">
+                {'CREATE TABLE IF NOT EXISTS screenshot_analyses (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), created_at timestamptz DEFAULT now(), sport text, event_name text, event_time text, venue text, selection text, bet_type text, recommendation text, odds numeric, confidence_score numeric, expected_value numeric, suggested_stake_percent numeric, reasoning text, key_stat text, raw_result jsonb, status text DEFAULT \'draft\', placed_stake numeric, outcome text, profit_loss numeric);'}
+              </div>
+            )}
             <p className="text-gray-400 font-mono text-xs mb-2">
-              The scan history table hasn't been created yet. Run this SQL in your{' '}
-              <span className="text-white">Supabase SQL editor</span>:
+              {isMissingTable && !isRlsError ? 'Step 2 — Disable RLS (row-level security):' : 'Disable RLS on the table:'}
             </p>
             <div className="bg-navy-900 rounded-xl p-3 text-[10px] font-mono text-gray-400 break-all leading-relaxed">
-              {'CREATE TABLE IF NOT EXISTS screenshot_analyses (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), created_at timestamptz DEFAULT now(), sport text, event_name text, event_time text, venue text, selection text, bet_type text, recommendation text, odds numeric, confidence_score numeric, expected_value numeric, suggested_stake_percent numeric, reasoning text, key_stat text, raw_result jsonb, status text DEFAULT \'draft\', placed_stake numeric, outcome text, profit_loss numeric);'}
+              {'ALTER TABLE screenshot_analyses DISABLE ROW LEVEL SECURITY;'}
             </div>
           </div>
         )}
@@ -555,8 +577,16 @@ export function ScreenshotAnalysis() {
   const [showBetSlip, setShowBetSlip] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const loadingMessages = ['Reading screenshots...', 'Researching runners...', 'Calculating edge...', 'Building verdict...'];
+  useEffect(() => {
+    if (!loading) { setLoadingMsgIdx(0); return; }
+    const t = setInterval(() => setLoadingMsgIdx(i => (i + 1) % loadingMessages.length), 2200);
+    return () => clearInterval(t);
+  }, [loading]);
 
   function readFile(file: File): Promise<ImageItem> {
     return new Promise((resolve, reject) => {
@@ -804,7 +834,7 @@ export function ScreenshotAnalysis() {
               className="mt-4 w-full py-4 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-lg hover:bg-green-dim disabled:opacity-60 transition-all active:scale-95 flex items-center justify-center gap-3"
             >
               {loading
-                ? <><Loader2 size={20} className="animate-spin" />Reading {images.length} screenshot{images.length > 1 ? 's' : ''}...</>
+                ? <><Loader2 size={20} className="animate-spin" />{loadingMessages[loadingMsgIdx]}</>
                 : <><Zap size={20} />Analyse {images.length} Screenshot{images.length > 1 ? 's' : ''}</>}
             </button>
           )}
@@ -833,73 +863,155 @@ export function ScreenshotAnalysis() {
                 'bg-navy-800 border rounded-2xl overflow-hidden',
                 rec.recommendation === 'BET' ? 'border-green-edge/40 shadow-lg shadow-green-edge/10'
                 : rec.recommendation === 'WATCH' ? 'border-amber-edge/40'
+                : rec.recommendation === 'PASS' ? 'border-amber-500/30'
                 : 'border-navy-700'
               )}>
+                {/* Header bar */}
                 <div className={clsx(
                   'px-4 py-2 flex items-center justify-between',
                   rec.recommendation === 'BET' ? 'bg-green-edge/10'
                   : rec.recommendation === 'WATCH' ? 'bg-amber-edge/10'
+                  : rec.recommendation === 'PASS' ? 'bg-amber-500/10'
                   : 'bg-navy-900'
                 )}>
                   <span className={clsx(
                     'text-xs font-mono font-bold px-3 py-1 rounded-full',
                     rec.recommendation === 'BET' ? 'bg-green-edge/20 text-green-edge'
                     : rec.recommendation === 'WATCH' ? 'bg-amber-edge/20 text-amber-edge'
+                    : rec.recommendation === 'PASS' ? 'bg-amber-500/20 text-amber-500'
                     : 'bg-gray-700/50 text-gray-400'
                   )}>
                     {rec.recommendation}
                   </span>
-                  <span className="text-xs text-gray-500 font-mono">{betTypeLabel(rec.bet_type)}</span>
+                  {rec.recommendation !== 'PASS' && rec.recommendation !== 'SKIP' && (
+                    <span className="text-xs text-gray-500 font-mono">{betTypeLabel(rec.bet_type)}</span>
+                  )}
                 </div>
 
                 <div className="p-4">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h2 className="font-display font-bold text-white text-xl leading-tight mb-1">{rec.selection}</h2>
-                      {rec.key_stat && <p className="text-green-edge text-xs font-mono">{rec.key_stat}</p>}
-                    </div>
-                    <ConfidenceGauge value={rec.confidence_score} size={70} showLabel />
-                  </div>
+                  {(rec.recommendation === 'PASS' || rec.recommendation === 'SKIP') ? (
+                    /* ── PASS / SKIP — no value found ── */
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+                        <h2 className="font-display font-bold text-amber-500 text-lg leading-tight">
+                          {rec.recommendation === 'PASS' ? 'No Value Found — Pass This Race' : 'Negative EV — Skip'}
+                        </h2>
+                      </div>
 
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    <div className="bg-navy-900 rounded-xl p-3 text-center">
-                      <div className="text-xs text-gray-500 font-mono mb-1">ODDS</div>
-                      <OddsDisplay odds={bestOdds} size="sm" />
-                    </div>
-                    <div className="bg-navy-900 rounded-xl p-3 text-center">
-                      <div className="text-xs text-gray-500 font-mono mb-1">STAKE %</div>
-                      <span className="text-sm font-mono font-medium text-white">{rec.suggested_stake_percent.toFixed(1)}%</span>
-                    </div>
-                    <div className="bg-navy-900 rounded-xl p-3 text-center">
-                      <div className="text-xs text-gray-500 font-mono mb-1">EV</div>
-                      <span className={clsx('text-sm font-mono font-medium', rec.expected_value > 0 ? 'text-green-edge' : 'text-red-edge')}>
-                        {formatEV(rec.expected_value)}
-                      </span>
-                    </div>
-                  </div>
+                      {rec.professional_verdict && (
+                        <p className="text-sm text-gray-300 leading-relaxed">{rec.professional_verdict}</p>
+                      )}
 
-                  {rec.risk_flags?.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {rec.risk_flags.map((flag, i) => (
-                        <span key={i} className="flex items-center gap-1 text-xs font-mono px-2 py-1 bg-amber-edge/10 text-amber-edge rounded-full">
-                          <AlertTriangle size={10} />{flag}
-                        </span>
-                      ))}
+                      {rec.pass_reason && (
+                        <div className="bg-navy-900 rounded-xl p-3">
+                          <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-1">Why Pass</p>
+                          <p className="text-sm text-gray-300">{rec.pass_reason}</p>
+                        </div>
+                      )}
+
+                      {rec.wait_for && (
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                          <p className="text-[10px] text-amber-500 font-mono uppercase tracking-wider mb-1">What to Wait For</p>
+                          <p className="text-sm text-white">{rec.wait_for}</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-navy-900 rounded-xl p-3 text-center">
+                          <div className="text-xs text-gray-500 font-mono mb-1">CONFIDENCE</div>
+                          <span className="text-sm font-mono font-medium text-gray-400">{rec.confidence_score}%</span>
+                        </div>
+                        <div className="bg-navy-900 rounded-xl p-3 text-center">
+                          <div className="text-xs text-gray-500 font-mono mb-1">EV</div>
+                          <span className={clsx('text-sm font-mono font-medium', rec.expected_value > 0 ? 'text-green-edge' : 'text-red-edge')}>
+                            {formatEV(rec.expected_value)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {rec.risk_flags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {rec.risk_flags.map((flag, i) => (
+                            <span key={i} className="flex items-center gap-1 text-xs font-mono px-2 py-1 bg-amber-edge/10 text-amber-edge rounded-full">
+                              <AlertTriangle size={10} />{flag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white font-mono transition-all">
+                        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {expanded ? 'Hide' : 'Show'} full analysis
+                      </button>
+                      {expanded && (
+                        <div className="bg-navy-900 rounded-xl p-4">
+                          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{rec.reasoning}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ) : (
+                    /* ── BET / WATCH ── */
+                    <div>
+                      {rec.professional_verdict && (
+                        <p className="text-xs text-gray-400 font-mono italic mb-3 leading-relaxed">{rec.professional_verdict}</p>
+                      )}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex-1 min-w-0">
+                          <h2 className="font-display font-bold text-white text-xl leading-tight mb-1">{rec.selection}</h2>
+                          {rec.key_stat && <p className="text-green-edge text-xs font-mono">{rec.key_stat}</p>}
+                        </div>
+                        <ConfidenceGauge value={rec.confidence_score} size={70} showLabel />
+                      </div>
 
-                  <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white font-mono transition-all mb-2">
-                    {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    {expanded ? 'Hide' : 'Show'} analysis
-                  </button>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <div className="bg-navy-900 rounded-xl p-3 text-center">
+                          <div className="text-xs text-gray-500 font-mono mb-1">ODDS</div>
+                          <OddsDisplay odds={bestOdds} size="sm" />
+                        </div>
+                        <div className="bg-navy-900 rounded-xl p-3 text-center">
+                          <div className="text-xs text-gray-500 font-mono mb-1">STAKE %</div>
+                          <span className="text-sm font-mono font-medium text-white">{rec.suggested_stake_percent.toFixed(1)}%</span>
+                        </div>
+                        <div className="bg-navy-900 rounded-xl p-3 text-center">
+                          <div className="text-xs text-gray-500 font-mono mb-1">EV</div>
+                          <span className={clsx('text-sm font-mono font-medium', rec.expected_value > 0 ? 'text-green-edge' : 'text-red-edge')}>
+                            {formatEV(rec.expected_value)}
+                          </span>
+                        </div>
+                      </div>
 
-                  {expanded && (
-                    <div className="bg-navy-900 rounded-xl p-4">
-                      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{rec.reasoning}</p>
+                      {rec.risk_flags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {rec.risk_flags.map((flag, i) => (
+                            <span key={i} className="flex items-center gap-1 text-xs font-mono px-2 py-1 bg-amber-edge/10 text-amber-edge rounded-full">
+                              <AlertTriangle size={10} />{flag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {rec.wait_for && rec.recommendation === 'WATCH' && (
+                        <div className="bg-amber-edge/5 border border-amber-edge/20 rounded-xl p-3 mb-4">
+                          <p className="text-[10px] text-amber-edge font-mono uppercase tracking-wider mb-1">What to Watch For</p>
+                          <p className="text-xs text-gray-300">{rec.wait_for}</p>
+                        </div>
+                      )}
+
+                      <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white font-mono transition-all mb-2">
+                        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {expanded ? 'Hide' : 'Show'} analysis
+                      </button>
+                      {expanded && (
+                        <div className="bg-navy-900 rounded-xl p-4">
+                          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{rec.reasoning}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* Runners list */}
                 {result.runners && result.runners.length > 0 && (
                   <div className="border-t border-navy-700 px-4 py-3">
                     <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2">Runners</h3>
@@ -922,29 +1034,76 @@ export function ScreenshotAnalysis() {
                   </div>
                 )}
 
-                {/* Placed / Skip actions */}
-                <div className="p-4 pt-2 flex flex-col gap-2">
-                  <button
-                    onClick={() => setShowBetSlip(true)}
-                    className="flex items-center justify-center gap-2 w-full py-3.5 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-base hover:bg-green-dim transition-all active:scale-95"
-                  >
-                    <ExternalLink size={18} />Open Bet in TAB
-                  </button>
+                {/* Probability table */}
+                {rec.probability_table && rec.probability_table.length > 0 && (
+                  <div className="border-t border-navy-700 px-4 py-3">
+                    <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2">Probability Assessment</h3>
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="text-[10px] text-gray-600 font-normal">
+                          <th className="text-left pb-1.5 font-normal">Runner</th>
+                          <th className="text-right pb-1.5 font-normal">Mkt%</th>
+                          <th className="text-right pb-1.5 font-normal">True%</th>
+                          <th className="text-right pb-1.5 font-normal">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rec.probability_table.map((row, i) => (
+                          <tr key={i} className="border-t border-navy-700/50">
+                            <td className={clsx('py-1.5 truncate max-w-[120px]',
+                              row.value_rating === 'good' ? 'text-green-edge' : row.value_rating === 'poor' ? 'text-red-edge/80' : 'text-gray-400'
+                            )}>{row.runner}</td>
+                            <td className="text-right text-gray-500">{row.implied_prob.toFixed(1)}%</td>
+                            <td className={clsx('text-right font-medium',
+                              row.true_prob > row.implied_prob ? 'text-green-edge' : 'text-gray-400'
+                            )}>{row.true_prob.toFixed(1)}%</td>
+                            <td className={clsx('text-right font-bold',
+                              row.value_rating === 'good' ? 'text-green-edge' : row.value_rating === 'poor' ? 'text-red-edge/70' : 'text-gray-500'
+                            )}>
+                              {row.value_rating === 'good' ? '✓' : row.value_rating === 'poor' ? '✗' : '~'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
+                {/* Actions */}
+                <div className="p-4 pt-2 flex flex-col gap-2">
+                  {rec.recommendation !== 'PASS' && rec.recommendation !== 'SKIP' && (
+                    <button
+                      onClick={() => setShowBetSlip(true)}
+                      className="flex items-center justify-center gap-2 w-full py-3.5 bg-green-edge text-navy-950 rounded-xl font-display font-bold text-base hover:bg-green-dim transition-all active:scale-95"
+                    >
+                      <ExternalLink size={18} />Open Bet in TAB
+                    </button>
+                  )}
                   {placedStatus === 'draft' && (
                     <div className="flex gap-2">
-                      <button
-                        onClick={markPlaced}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-navy-900 border border-green-edge/30 text-green-edge rounded-xl font-mono text-sm hover:bg-green-edge/10 transition-all"
-                      >
-                        <CheckCircle2 size={15} />I placed this
-                      </button>
-                      <button
-                        onClick={markSkipped}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all"
-                      >
-                        <XCircle size={15} />Skipped it
-                      </button>
+                      {rec.recommendation !== 'PASS' && rec.recommendation !== 'SKIP' ? (
+                        <>
+                          <button
+                            onClick={markPlaced}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-navy-900 border border-green-edge/30 text-green-edge rounded-xl font-mono text-sm hover:bg-green-edge/10 transition-all"
+                          >
+                            <CheckCircle2 size={15} />I placed this
+                          </button>
+                          <button
+                            onClick={markSkipped}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all"
+                          >
+                            <XCircle size={15} />Skipped it
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={markSkipped}
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-navy-900 border border-navy-600 text-gray-400 rounded-xl font-mono text-sm hover:text-white transition-all"
+                        >
+                          <XCircle size={15} />Mark as Passed
+                        </button>
+                      )}
                     </div>
                   )}
                   {placedStatus === 'placed' && (

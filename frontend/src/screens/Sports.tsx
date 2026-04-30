@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { RefreshCw, Clock, TrendingUp, AlertTriangle, Zap } from 'lucide-react';
+import { RefreshCw, Clock, TrendingUp, AlertTriangle, Zap, Layers, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { useBettingStore } from '../store/useBettingStore';
 import { useAppStore } from '../store/useAppStore';
-import { analysesApi } from '../lib/api';
+import { analysesApi, sgmApi, type SgmTier } from '../lib/api';
 import type { Event, Analysis, Sport } from '../types';
 import { clsx, sportEmoji, formatCurrency } from '../lib/utils';
 import { ConfidenceGauge } from '../components/ConfidenceGauge';
@@ -57,18 +57,93 @@ const SPORT_COLORS: Partial<Record<Sport | 'all', string>> = {
   tennis: 'text-purple-400 border-purple-400/30 bg-purple-400/10',
 };
 
+interface SgmResult {
+  low_risk: SgmTier;
+  medium_risk: SgmTier;
+  value_pick: SgmTier & { key_insight?: string };
+  odds_available: boolean;
+  note?: string;
+}
+
+function SgmCard({ tier, label, color }: { tier: SgmTier & { key_insight?: string }; label: string; color: 'green' | 'amber' | 'purple' }) {
+  const [open, setOpen] = useState(false);
+  const colors = {
+    green: { border: 'border-green-edge/30', bg: 'bg-green-edge/5', badge: 'bg-green-edge/20 text-green-edge', odds: 'text-green-edge' },
+    amber: { border: 'border-amber-edge/30', bg: 'bg-amber-edge/5', badge: 'bg-amber-edge/20 text-amber-edge', odds: 'text-amber-edge' },
+    purple: { border: 'border-purple-400/30', bg: 'bg-purple-400/5', badge: 'bg-purple-400/20 text-purple-400', odds: 'text-purple-400' },
+  }[color];
+
+  return (
+    <div className={clsx('border rounded-2xl overflow-hidden', colors.border)}>
+      <div className={clsx('px-4 py-3 flex items-center justify-between', colors.bg)}>
+        <div className="flex items-center gap-2">
+          <span className={clsx('text-xs font-mono font-bold px-2 py-0.5 rounded-full', colors.badge)}>{label}</span>
+          <span className="text-sm font-medium text-white">{tier.title}</span>
+          <span className="text-xs text-gray-500 font-mono">{sportEmoji(tier.sport as Sport)} {tier.event.split(' v ')[0]}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <div className={clsx('text-lg font-display font-bold', colors.odds)}>${tier.combined_est_odds.toFixed(2)}</div>
+            <div className="text-[10px] text-gray-500 font-mono">{tier.confidence}% conf</div>
+          </div>
+          <button onClick={() => setOpen(v => !v)} className="text-gray-500 hover:text-white transition-colors">
+            {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div className="px-4 pb-4 pt-2">
+          <div className="flex flex-col gap-1 mb-3">
+            {tier.legs.map((leg, i) => (
+              <div key={i} className="flex items-center justify-between bg-navy-900/60 rounded-lg px-3 py-2">
+                <div>
+                  <span className="text-[10px] text-gray-500 font-mono uppercase">{leg.market} · </span>
+                  <span className="text-sm text-white font-medium">{leg.selection}</span>
+                </div>
+                <span className="text-sm font-mono text-gray-300">${leg.est_odds.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          {tier.key_insight && (
+            <p className={clsx('text-xs font-mono mb-2', colors.odds)}>{tier.key_insight}</p>
+          )}
+          <p className="text-xs text-gray-400 leading-relaxed">{tier.reasoning}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Sports() {
   const { events, loadEvents, isLoadingEvents } = useBettingStore();
   const { triggerScrape, scraperStatus } = useAppStore();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [activeSport, setActiveSport] = useState<Sport | 'all'>('all');
   const [sortBy, setSortBy] = useState<'time' | 'confidence'>('time');
+  const [sgm, setSgm] = useState<SgmResult | null>(null);
+  const [sgmLoading, setSgmLoading] = useState(false);
+  const [sgmError, setSgmError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     await loadEvents(activeSport === 'all' ? undefined : activeSport);
     const data = await analysesApi.list().catch(() => []);
     setAnalyses(data);
   }, [activeSport]);
+
+  async function generateSgm() {
+    setSgmLoading(true);
+    setSgmError(null);
+    try {
+      const result = await sgmApi.generate();
+      setSgm(result);
+      if (!result) setSgmError('No sports events available — trigger a scrape first');
+    } catch (err) {
+      setSgmError(err instanceof Error ? err.message : 'Failed to generate SGM');
+    } finally {
+      setSgmLoading(false);
+    }
+  }
 
   useEffect(() => { refresh(); }, [activeSport]);
   useEffect(() => {
@@ -157,6 +232,58 @@ export function Sports() {
             </button>
           );
         })}
+      </div>
+
+      {/* SGM Builder */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Layers size={16} className="text-purple-400" />
+            <span className="font-display font-semibold text-white text-sm">AI SGM Builder</span>
+            {!sgm?.odds_available && sgm && (
+              <span className="text-[10px] font-mono text-amber-edge bg-amber-edge/10 px-2 py-0.5 rounded-full">Est. odds</span>
+            )}
+          </div>
+          <button
+            onClick={generateSgm}
+            disabled={sgmLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-400/15 border border-purple-400/30 text-purple-400 rounded-xl text-xs font-mono hover:bg-purple-400/20 transition-all disabled:opacity-50"
+          >
+            {sgmLoading ? <><RefreshCw size={12} className="animate-spin" />Analysing...</> : <><Sparkles size={12} />Generate SGM</>}
+          </button>
+        </div>
+
+        {sgmError && (
+          <p className="text-xs text-red-edge font-mono bg-red-edge/10 rounded-xl p-3">{sgmError}</p>
+        )}
+
+        {!sgm && !sgmLoading && !sgmError && (
+          <div className="bg-navy-800 border border-navy-700 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-400/10 flex items-center justify-center shrink-0">
+              <Layers size={16} className="text-purple-400" />
+            </div>
+            <div>
+              <p className="text-sm text-white font-medium">Same Game Multi recommendations</p>
+              <p className="text-xs text-gray-500 font-mono">Get AI-generated SGM suggestions across 3 risk tiers — low, medium, and value pick</p>
+            </div>
+          </div>
+        )}
+
+        {sgm && (
+          <div className="flex flex-col gap-2">
+            <SgmCard tier={sgm.low_risk} label="Low Risk" color="green" />
+            <SgmCard tier={sgm.medium_risk} label="Medium Risk" color="amber" />
+            <SgmCard tier={sgm.value_pick} label="Value Pick" color="purple" />
+            {sgm.note && (
+              <p className="text-xs text-gray-500 font-mono px-1">{sgm.note}</p>
+            )}
+            {!sgm.odds_available && (
+              <p className="text-xs text-amber-edge/70 font-mono px-1">
+                Odds estimates only — add ODDS_API_KEY to Railway for real-time AU odds
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}

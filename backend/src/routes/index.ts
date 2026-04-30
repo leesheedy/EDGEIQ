@@ -9,6 +9,7 @@ import scraperRouter from './scraper';
 import screenshotRouter from './screenshot';
 import screenshotAnalysesRouter from './screenshotAnalyses';
 import streamsRouter from './streams';
+import sgmRouter from './sgm';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use('/scraper', scraperRouter);
 router.use('/screenshot', screenshotRouter);
 router.use('/scan-drafts', screenshotAnalysesRouter);
 router.use('/streams', streamsRouter);
+router.use('/sgm', sgmRouter);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

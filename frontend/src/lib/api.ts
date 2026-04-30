@@ -172,6 +172,29 @@ export const streamsApi = {
   list: () => request<import('../screens/Watch').StreamSource[]>('/streams'),
 };
 
+// SGM
+export const sgmApi = {
+  generate: () => request<{
+    low_risk: SgmTier;
+    medium_risk: SgmTier;
+    value_pick: SgmTier & { key_insight?: string };
+    odds_available: boolean;
+    note?: string;
+  } | null>('/sgm/generate', { method: 'POST' }),
+};
+
+interface SgmTier {
+  event: string;
+  sport: string;
+  title: string;
+  legs: Array<{ market: string; selection: string; est_odds: number }>;
+  combined_est_odds: number;
+  confidence: number;
+  reasoning: string;
+}
+
+export type { SgmTier };
+
 // Health
 export const healthApi = {
   check: () => request<{ status: string; timestamp: string }>('/health'),
