@@ -115,6 +115,36 @@ function getHandInfo(c1: CardVal | null, c2: CardVal | null): {
   return { mode: 'hard', key, label: `Hard ${total}` };
 }
 
+// ─── Multi-card hand helpers ──────────────────────────────────────────────────
+function calcHandTotal(cards: CardVal[]): { total: number; soft: boolean; bust: boolean } {
+  let total = 0, aces = 0;
+  for (const c of cards) {
+    if (c === 'A') { aces++; total += 11; }
+    else { total += c === '10' ? 10 : parseInt(c); }
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return { total, soft: aces > 0, bust: total > 21 };
+}
+
+function getMultiCardAction(cards: CardVal[], dealerCard: CardVal): string {
+  const { total, soft, bust } = calcHandTotal(cards);
+  if (bust) return 'BUST';
+  if (total >= 21) return 'S';
+  let raw: string;
+  if (soft && total <= 18) {
+    const key = total <= 14 ? 'A,2-3' : total <= 16 ? 'A,4-5' : total === 17 ? 'A,6' : 'A,7';
+    raw = BJ_SOFT[key]?.[dealerCard] ?? 'S';
+  } else {
+    const key = total <= 9 ? '8-9' : total === 10 ? '10' : total === 11 ? '11'
+      : total === 12 ? '12' : total <= 14 ? '13-14' : total === 15 ? '15'
+      : total === 16 ? '16' : '17+';
+    raw = BJ_HARD[key]?.[dealerCard] ?? 'S';
+  }
+  if (raw === 'Dh' || raw === 'Rh') return 'H';
+  if (raw === 'Ds') return 'S';
+  return raw;
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 export function Casino() {
   const [view, setView] = useState<View>('hub');
@@ -525,6 +555,7 @@ function BjPlay({ hands, onUpdate }: { hands: BjHand[]; onUpdate: (h: BjHand[]) 
   const [c2, setC2] = useState<CardVal | null>(null);
   const [d, setD] = useState<CardVal | null>(null);
   const [focus, setFocus] = useState<'c1' | 'c2' | 'd'>('c1');
+  const [hitCards, setHitCards] = useState<CardVal[]>([]);
   const [lastResult, setLastResult] = useState<{ outcome: BjHand['outcome']; pnl: number } | null>(null);
 
   const hand = useMemo(() => getHandInfo(c1, c2), [c1, c2]);
@@ -534,6 +565,14 @@ function BjPlay({ hands, onUpdate }: { hands: BjHand[]; onUpdate: (h: BjHand[]) 
     return table[hand.key]?.[d] ?? null;
   }, [hand, d]);
 
+  const allPlayerCards = useMemo((): CardVal[] => (c1 && c2 ? [c1, c2, ...hitCards] : []), [c1, c2, hitCards]);
+  const hitHandInfo = useMemo(() => hitCards.length > 0 ? calcHandTotal(allPlayerCards) : null, [allPlayerCards, hitCards.length]);
+  const hitAction = useMemo(() => (hitCards.length > 0 && d ? getMultiCardAction(allPlayerCards, d) : null), [allPlayerCards, hitCards.length, d]);
+  const showHitSection = !!d && !!hand && !hand.isBlackjack &&
+    ((action === 'H' || action === 'Dh' || action === 'Rh') || hitCards.length > 0);
+  const needsAnotherHit = showHitSection && !hitHandInfo?.bust &&
+    (hitAction === 'H' || (hitCards.length === 0 && (action === 'H' || action === 'Dh' || action === 'Rh')));
+
   function pickCard(v: CardVal) {
     if (focus === 'c1') { setC1(v); setFocus('c2'); }
     else if (focus === 'c2') { setC2(v); setFocus('d'); }
@@ -541,7 +580,7 @@ function BjPlay({ hands, onUpdate }: { hands: BjHand[]; onUpdate: (h: BjHand[]) 
     setLastResult(null);
   }
 
-  function resetHand() { setC1(null); setC2(null); setD(null); setFocus('c1'); setLastResult(null); }
+  function resetHand() { setC1(null); setC2(null); setD(null); setFocus('c1'); setLastResult(null); setHitCards([]); }
 
   function record(outcome: BjHand['outcome']) {
     const b = parseFloat(bet);
@@ -692,6 +731,75 @@ function BjPlay({ hands, onUpdate }: { hands: BjHand[]; onUpdate: (h: BjHand[]) 
           </div>
         )}
       </div>
+
+      {/* Hit card tracking section */}
+      {showHitSection && (
+        <div className="bg-navy-800 border border-blue-500/30 rounded-2xl overflow-hidden">
+          <div className="p-4 pb-2">
+            {/* Drawn cards + current total */}
+            {hitCards.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {hitCards.map((c, i) => (
+                      <div key={i} className="w-9 h-12 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center font-display font-bold text-lg text-blue-300">{c}</div>
+                    ))}
+                  </div>
+                  <ChevronRight size={14} className="text-gray-600 shrink-0" />
+                  <div className="flex-1">
+                    <div className={clsx('text-sm font-mono font-bold', hitHandInfo?.soft ? 'text-blue-400' : 'text-white')}>
+                      {hitHandInfo?.bust ? 'BUST' : `${hitHandInfo?.soft ? 'Soft' : 'Hard'} ${hitHandInfo?.total}`}
+                    </div>
+                    <div className="text-[10px] text-gray-600 font-mono">{hitCards.length} card{hitCards.length > 1 ? 's' : ''} drawn</div>
+                  </div>
+                  <button onClick={() => setHitCards(prev => prev.slice(0, -1))} className="text-xs font-mono text-gray-600 hover:text-white transition-colors">Undo</button>
+                </div>
+                {/* Updated action banner */}
+                {hitHandInfo?.bust ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-red-900/40 border border-red-500/30">
+                    <AlertTriangle size={18} className="text-red-400 shrink-0" />
+                    <div>
+                      <div className="font-display font-bold text-red-400 text-xl">BUST</div>
+                      <div className="text-red-400/60 text-xs font-mono">{hitHandInfo.total} — over 21</div>
+                    </div>
+                  </div>
+                ) : hitAction && BJ_ACTIONS[hitAction] ? (
+                  <div className={clsx('flex items-center gap-4 p-3 rounded-xl bg-gradient-to-r', BJ_ACTIONS[hitAction].bg)}>
+                    <div className="flex-1">
+                      <div className="font-display font-bold text-white text-xl">{BJ_ACTIONS[hitAction].label}</div>
+                      <div className="text-white/60 text-xs font-mono">{hitHandInfo?.soft ? 'Soft' : 'Hard'} {hitHandInfo?.total} vs dealer {d}</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-black/25 flex items-center justify-center shrink-0">
+                      <span className="font-display font-bold text-white text-base">{hitAction}</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+            {/* Card picker for next hit */}
+            {needsAnotherHit && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                <p className="text-xs font-mono text-blue-400 font-semibold">
+                  {hitCards.length === 0 ? 'You hit — tap the card you received:' : 'Hit again — tap the new card:'}
+                </p>
+              </div>
+            )}
+          </div>
+          {needsAnotherHit && (
+            <div className="px-4 pb-4">
+              <div className="grid grid-cols-5 gap-2">
+                {CARD_VALS.map(v => (
+                  <button key={v} onClick={() => { setHitCards(prev => [...prev, v]); setLastResult(null); }}
+                    className="py-3 rounded-xl font-display font-bold text-xl transition-all active:scale-90 border-2 bg-blue-950 text-blue-200 border-blue-900 hover:bg-blue-900">
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Last result flash */}
       {lastResult && (
