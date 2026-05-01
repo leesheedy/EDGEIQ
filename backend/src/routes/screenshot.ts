@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../config';
 import { db } from '../database';
 
 const router = Router();
@@ -253,7 +252,7 @@ router.post('/analyse-multi', async (req, res) => {
     const { images } = req.body as { images: Array<{ image: string; mediaType?: string }> };
     if (!images?.length) return res.status(400).json({ error: 'No images provided' });
 
-    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    const apiKey = await db.getAnthropicApiKey();
     if (!apiKey) return res.status(400).json({ error: 'Anthropic API key not configured — add it in Settings' });
 
     const client = new Anthropic({ apiKey });
@@ -272,7 +271,7 @@ router.post('/analyse', async (req, res) => {
     const { image, mediaType = 'image/jpeg' } = req.body as { image: string; mediaType?: string };
     if (!image) return res.status(400).json({ error: 'No image provided' });
 
-    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    const apiKey = await db.getAnthropicApiKey();
     if (!apiKey) return res.status(400).json({ error: 'Anthropic API key not configured — add it in Settings' });
 
     const client = new Anthropic({ apiKey });
@@ -291,7 +290,7 @@ router.post('/analyse-text', async (req, res) => {
     const { pageText, pageUrl } = req.body as { pageText: string; pageUrl?: string };
     if (!pageText) return res.status(400).json({ error: 'No page text provided' });
 
-    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    const apiKey = await db.getAnthropicApiKey();
     if (!apiKey) return res.status(400).json({ error: 'Anthropic API key not configured — add it in Settings' });
 
     const client = new Anthropic({ apiKey });

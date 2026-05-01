@@ -60,7 +60,8 @@ async function runFullCycle(): Promise<void> {
     const smsThreshold = parseInt(settings.sms_confidence_threshold || String(config.thresholds.smsConfidence), 10);
     const maxStakePct = parseFloat(settings.max_stake_percent || '5');
 
-    if (settings.anthropic_api_key || config.anthropic.apiKey) {
+    const anthropicKey = await db.getAnthropicApiKey();
+    if (anthropicKey) {
       const { analysed, highConfidence } = await analyseAllNewEvents(
         bankroll || 1000,
         minConfidence,

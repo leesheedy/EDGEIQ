@@ -185,7 +185,7 @@ export async function analyseEvent(
   bankroll: number,
   maxStakePercent = 5
 ): Promise<Analysis | null> {
-  const apiKey = await db.getSetting('anthropic_api_key') || config.anthropic.apiKey;
+  const apiKey = await db.getAnthropicApiKey();
   if (!apiKey) {
     console.warn('No Anthropic API key configured');
     return null;

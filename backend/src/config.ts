@@ -56,6 +56,6 @@ export function validateConfig(): string[] {
   const errors: string[] = [];
   if (!config.supabase.url) errors.push('SUPABASE_URL is required');
   if (!config.supabase.serviceKey) errors.push('SUPABASE_SERVICE_KEY is required');
-  if (!config.anthropic.apiKey) errors.push('ANTHROPIC_API_KEY is required');
+  if (!config.anthropic.apiKey) errors.push('ANTHROPIC_API_KEY env var not set — AI will use the key stored in Supabase settings instead');
   return errors;
 }
