@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../config';
 import { db } from '../database';
 
 const router = Router();
@@ -79,7 +78,7 @@ Return ONLY this JSON:
 
 router.post('/generate', async (req, res) => {
   try {
-    const apiKey = (await db.getSetting('anthropic_api_key')) || config.anthropic.apiKey;
+    const apiKey = await db.getAnthropicApiKey();
     if (!apiKey) return res.status(400).json({ error: 'Anthropic API key not configured — add it in Settings' });
 
     // Load current sports events

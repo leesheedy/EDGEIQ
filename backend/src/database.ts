@@ -211,8 +211,31 @@ export const db = {
 
   // Settings
   async getSetting(key: string): Promise<string | null> {
-    const { data } = await supabase.from('settings').select('value').eq('key', key).single();
-    return data?.value || null;
+    const { data, error } = await supabase.from('settings').select('value').eq('key', key).maybeSingle();
+    if (error) {
+      console.error(`getSetting(${key}) error:`, error.message);
+      return null;
+    }
+    const value = data?.value;
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  },
+
+  // Resolve the Anthropic API key with Supabase as the source of truth.
+  // Falls back to the ANTHROPIC_API_KEY env var only when no key is stored in Supabase.
+  async getAnthropicApiKey(): Promise<string | null> {
+    const stored = await this.getSetting('anthropic_api_key');
+    if (stored) {
+      console.log('[Anthropic] Using API key from Supabase settings');
+      return stored;
+    }
+    const envKey = config.anthropic.apiKey?.trim();
+    if (envKey) {
+      console.warn('[Anthropic] No key in Supabase settings — falling back to ANTHROPIC_API_KEY env var. Save the key in Settings to use Supabase.');
+      return envKey;
+    }
+    return null;
   },
 
   async getAllSettings(): Promise<Record<string, string>> {
